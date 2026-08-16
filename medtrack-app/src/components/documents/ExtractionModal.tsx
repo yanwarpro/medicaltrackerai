@@ -25,6 +25,22 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
   const [editUnit, setEditUnit] = useState('');
 
   useEffect(() => {
+    if (doc.ocrText) {
+      try {
+        const parsed: ExtractionResult = JSON.parse(doc.ocrText);
+        if (parsed && parsed.labItems && parsed.labItems.length > 0) {
+          parsed.labItems = parsed.labItems.map((i) => ({
+            ...i,
+            action: i.action === 'rejected' ? 'rejected' : 'confirmed',
+          }));
+          setResult(parsed);
+          setStep('review');
+          return;
+        }
+      } catch {
+        // Re-run extraction if parse fails
+      }
+    }
     runExtraction();
   }, []);
 

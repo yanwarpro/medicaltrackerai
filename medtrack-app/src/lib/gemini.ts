@@ -136,7 +136,7 @@ export async function extractDocumentWithGemini(
     referenceHigh: item.referenceHigh ?? undefined,
     abnormalFlag: (item.abnormalFlag as AbnormalFlag) ?? null,
     confidence: item.confidence ?? 0.8,
-    action: 'pending' as const,
+    action: 'confirmed' as const,
   }));
 
   return {
