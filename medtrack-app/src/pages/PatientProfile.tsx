@@ -177,7 +177,7 @@ export default function PatientProfile() {
   const showSwitcher = !isCreating && patients.length > 0;
 
   return (
-    <div className="page-container max-w-3xl space-y-6">
+    <div className="page-container">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">

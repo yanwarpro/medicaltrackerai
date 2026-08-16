@@ -162,7 +162,7 @@ export default function SettingsPage() {
   const supabaseActive = isSupabaseConnected();
 
   return (
-    <div className="page-container max-w-2xl space-y-6">
+    <div className="page-container">
       <div>
         <h1 className="text-2xl font-bold text-white">Pengaturan</h1>
         <p className="text-slate-400 text-sm mt-1">Konfigurasi Tampilan, AI, dan Database Supabase</p>

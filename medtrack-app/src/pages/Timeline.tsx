@@ -131,7 +131,7 @@ export default function Timeline() {
   }
 
   return (
-    <div className="page-container max-w-3xl">
+    <div className="page-container">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Timeline Medis</h1>
