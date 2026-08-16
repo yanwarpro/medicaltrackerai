@@ -267,7 +267,7 @@ export default function Documents() {
                 >
                   <Eye size={13} /> Preview
                 </button>
-                {doc.category === 'Laboratory' && doc.status !== 'confirmed' && settings.geminiApiKey && (
+                {doc.category === 'Laboratory' && doc.status !== 'confirmed' && (
                   <button
                     onClick={() => setExtractionDoc(doc)}
                     id={`extract-doc-${doc.id}`}
