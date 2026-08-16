@@ -381,7 +381,7 @@ html.light .nav-item-active {
   }
 
   .table-row {
-    @apply border-b border-bg-border/50 hover:bg-bg-elevated/50 transition-colors;
+    @apply border-b border-bg-border transition-colors;
   }
 
   .trend-up {

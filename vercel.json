@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd medtrack-app && npm run build",
+  "outputDirectory": "medtrack-app/dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

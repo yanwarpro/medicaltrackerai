@@ -130,7 +130,7 @@ export default function LabResults() {
             </div>
           </div>
           <div className="flex gap-3">
-            <select className="input-field w-32" value={form.abnormalFlag} onChange={(e) => setForm((f) => ({ ...f, abnormalFlag: e.target.value as AbnormalFlag | '' }))} id="lab-flag-select">
+            <select className="input-field w-32" value={form.abnormalFlag || ''} onChange={(e) => setForm((f) => ({ ...f, abnormalFlag: e.target.value as AbnormalFlag | '' }))} id="lab-flag-select">
               <option value="">Normal</option>
               <option value="H">H (Tinggi)</option>
               <option value="L">L (Rendah)</option>
