@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+medtrack-app/node_modules
+.pnpm-store
+
+# Production build
+dist
+medtrack-app/dist
+dist-ssr
+
+# Environment variables & secrets
+.env
+medtrack-app/.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+
+# System / Editor
+.DS_Store
+Thumbs.db
