@@ -1,40 +1,47 @@
 import { useMemo } from 'react';
-import { CheckCircle, XCircle, Clock, AlertTriangle, ClipboardList } from 'lucide-react';
+import { AlertTriangle, ClipboardList, CheckCircle, HelpCircle, XCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { labResultStorage } from '../lib/storage';
 import { CHECKLIST_ITEMS, CHECKLIST_CATEGORIES } from '../lib/checklist';
 import { formatDateShort, cn } from '../lib/utils';
 
 const STATUS_CONFIG = {
-  available: { label: 'Tersedia', icon: CheckCircle, cls: 'text-emerald-500', badge: 'badge-green' },
-  missing: { label: 'Belum ditemukan', icon: XCircle, cls: 'text-slate-400', badge: 'badge-gray' },
-  outdated: { label: 'Sudah lama', icon: Clock, cls: 'text-amber-500', badge: 'badge-yellow' },
-  needs_review: { label: 'Perlu review', icon: AlertTriangle, cls: 'text-amber-500', badge: 'badge-yellow' },
+  available: {
+    label: 'Tersedia',
+    badge: 'badge-green',
+    icon: CheckCircle,
+    cls: 'text-emerald-400',
+  },
+  missing: {
+    label: 'Belum ditemukan',
+    badge: 'badge-gray',
+    icon: XCircle,
+    cls: 'text-slate-500',
+  },
+  unknown: {
+    label: 'Tidak ada data',
+    badge: 'badge-gray',
+    icon: HelpCircle,
+    cls: 'text-slate-500',
+  },
 };
 
 export default function Checklist() {
   const { activePatient } = useApp();
 
   const labResults = useMemo(() =>
-    activePatient ? labResultStorage.getAll(activePatient.id).filter((r) => r.verified) : [],
+    activePatient ? labResultStorage.getAll(activePatient.id) : [],
     [activePatient]
   );
 
-  // Compute status for each checklist item
   const itemStatuses = useMemo(() => {
-    const result: Record<string, { status: 'available' | 'missing' | 'outdated'; lastDate?: string }> = {};
-
+    const result: Record<string, { status: 'available' | 'missing'; lastDate?: string }> = {};
     CHECKLIST_ITEMS.forEach((item) => {
-      const matches = labResults.filter((r) => r.normalizedName === item.normalizedName);
-      if (matches.length === 0) {
-        result[item.id] = { status: 'missing' };
+      const match = labResults.find((r) => r.normalizedName === item.normalizedName);
+      if (match) {
+        result[item.id] = { status: 'available', lastDate: match.testDate };
       } else {
-        const latest = matches.sort((a, b) => b.testDate.localeCompare(a.testDate))[0];
-        const daysSince = (new Date().getTime() - new Date(latest.testDate).getTime()) / (1000 * 60 * 60 * 24);
-        result[item.id] = {
-          status: daysSince > 180 ? 'outdated' : 'available',
-          lastDate: latest.testDate,
-        };
+        result[item.id] = { status: 'missing' };
       }
     });
     return result;
@@ -51,7 +58,7 @@ export default function Checklist() {
   if (!activePatient) {
     return (
       <div className="page-container flex items-center justify-center min-h-[60vh]">
-        <p className="text-slate-500">Pilih pasien terlebih dahulu</p>
+        <p className="text-slate-400">Pilih pasien terlebih dahulu</p>
       </div>
     );
   }
@@ -65,27 +72,26 @@ export default function Checklist() {
         </p>
       </div>
 
-      {/* Disclaimer */}
-      <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-300">
-        <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+      {/* Disclaimer Alert Box */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
+        <AlertTriangle size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
         <p className="text-xs leading-relaxed">
           Checklist ini hanya menunjukkan pemeriksaan yang <strong>ditemukan dalam dokumen yang diunggah</strong>, bukan rekomendasi medis.
           "Belum ditemukan" bukan berarti pemeriksaan harus dilakukan — konsultasikan selalu dengan dokter.
         </p>
       </div>
 
-      {/* Category Overview */}
+      {/* Category Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {categoryStats.map(({ cat, total, available }) => (
-          <div key={cat} className="glass-card p-4" id={`checklist-cat-${cat.toLowerCase()}`}>
-            <div className="text-sm font-semibold text-white mb-3">{cat}</div>
-            <div className="flex items-baseline gap-1.5 mb-2">
-              <span className="text-2xl font-bold text-white">{available}</span>
-              <span className="text-slate-500 text-sm font-medium">/ {total}</span>
+          <div key={cat} className="glass-card p-4 border border-bg-border" id={`checklist-cat-${cat.toLowerCase()}`}>
+            <div className="text-xs text-slate-400 font-medium">{cat}</div>
+            <div className="text-2xl font-bold text-white mt-1">
+              {available} <span className="text-sm font-normal text-slate-500">/ {total}</span>
             </div>
-            <div className="w-full bg-slate-200 dark:bg-bg-primary rounded-full h-1.5">
+            <div className="w-full bg-bg-primary h-1.5 rounded-full mt-2 overflow-hidden border border-bg-border">
               <div
-                className="bg-gradient-accent h-1.5 rounded-full"
+                className="bg-accent-500 h-full rounded-full transition-all duration-300"
                 style={{ width: `${(available / total) * 100}%` }}
               />
             </div>
@@ -98,34 +104,35 @@ export default function Checklist() {
         {CHECKLIST_CATEGORIES.map((cat) => {
           const items = CHECKLIST_ITEMS.filter((i) => i.category === cat);
           return (
-            <div key={cat} className="glass-card overflow-hidden">
-              <div className="px-5 py-3 border-b border-bg-border bg-slate-100 dark:bg-bg-primary/50 flex items-center justify-between">
+            <div key={cat} className="glass-card overflow-hidden border border-bg-border">
+              {/* Category Header Banner */}
+              <div className="px-5 py-3 border-b border-bg-border bg-bg-elevated flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ClipboardList size={15} className="text-accent-500" />
+                  <ClipboardList size={15} className="text-accent-400" />
                   <span className="text-sm font-bold text-white">{cat} Workup</span>
                 </div>
-                <span className="text-xs font-medium text-slate-500">
+                <span className="text-xs font-semibold text-slate-400">
                   {items.filter((i) => itemStatuses[i.id]?.status === 'available').length} / {items.length} tersedia
                 </span>
               </div>
-              <div className="divide-y divide-bg-border/50">
+              <div className="divide-y divide-bg-border/60">
                 {items.map((item) => {
                   const statusData = itemStatuses[item.id] || { status: 'missing' as const };
                   const config = STATUS_CONFIG[statusData.status];
                   const Icon = config.icon;
                   return (
-                    <div key={item.id} className={cn('flex items-center gap-4 px-5 py-3 transition-colors', statusData.status === 'available' && 'bg-emerald-500/5')} id={`checklist-item-${item.id}`}>
+                    <div key={item.id} className={cn('flex items-center gap-4 px-5 py-3 transition-colors hover:bg-bg-elevated/30', statusData.status === 'available' && 'bg-emerald-500/5')} id={`checklist-item-${item.id}`}>
                       <Icon size={16} className={config.cls} />
                       <div className="flex-1 min-w-0">
-                        <div className={cn('text-sm font-medium', statusData.status === 'available' ? 'text-white font-semibold' : 'text-slate-500')}>
+                        <div className={cn('text-sm font-medium', statusData.status === 'available' ? 'text-white font-semibold' : 'text-slate-300')}>
                           {item.name}
                         </div>
-                        <div className="text-xs text-slate-500">{item.description}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{item.description}</div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <span className={`badge text-xs ${config.badge}`}>{config.label}</span>
+                        <span className={`badge text-xs font-semibold ${config.badge}`}>{config.label}</span>
                         {statusData.lastDate && (
-                          <div className="text-xs font-medium text-slate-500 mt-1">{formatDateShort(statusData.lastDate)}</div>
+                          <div className="text-xs font-medium text-slate-400 mt-1">{formatDateShort(statusData.lastDate)}</div>
                         )}
                         {statusData.status === 'missing' && (
                           <div className="text-xs text-slate-400 mt-1 italic max-w-32 text-right">

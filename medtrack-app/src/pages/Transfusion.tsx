@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, Droplets, Trash2, X, Save, TrendingUp, TrendingDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { transfusionStorage } from '../lib/storage';
-import type { BloodProduct, Transfusion } from '../lib/types';
+import type { BloodProduct } from '../lib/types';
 import { formatDateShort, formatNumber, cn } from '../lib/utils';
 
 const BLOOD_PRODUCTS: BloodProduct[] = ['PRC', 'WB', 'FFP', 'Platelet Concentrate', 'Cryoprecipitate', 'Other'];
@@ -68,7 +68,7 @@ export default function TransfusionTracker() {
   if (!activePatient) {
     return (
       <div className="page-container flex items-center justify-center min-h-[60vh]">
-        <p className="text-slate-500">Pilih pasien terlebih dahulu</p>
+        <p className="text-slate-400">Pilih pasien terlebih dahulu</p>
       </div>
     );
   }
@@ -89,17 +89,17 @@ export default function TransfusionTracker() {
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="stat-card">
+          <div className="stat-card border border-bg-border">
             <Droplets size={18} className="text-red-400" />
-            <div className="stat-value">{stats.total}</div>
+            <div className="stat-value text-white">{stats.total}</div>
             <div className="stat-label">Total Episode</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-value">{stats.totalUnits}</div>
+          <div className="stat-card border border-bg-border">
+            <div className="stat-value text-white">{stats.totalUnits}</div>
             <div className="stat-label">Total Kantong</div>
           </div>
           {stats.avgHbIncrease !== null && (
-            <div className="stat-card">
+            <div className="stat-card border border-bg-border">
               <div className="stat-value text-emerald-400">+{formatNumber(stats.avgHbIncrease, 1)}</div>
               <div className="stat-label">Rata-rata Kenaikan Hb</div>
             </div>
@@ -112,7 +112,7 @@ export default function TransfusionTracker() {
         <div className="glass-card p-5 space-y-4 border border-accent-500/20">
           <div className="flex items-center justify-between">
             <h3 className="section-title">Tambah Transfusi</h3>
-            <button onClick={() => setShowForm(false)} id="close-trans-form-btn"><X size={16} className="text-slate-400" /></button>
+            <button onClick={() => setShowForm(false)} id="close-trans-form-btn"><X size={16} className="text-slate-400 hover:text-white" /></button>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -159,20 +159,20 @@ export default function TransfusionTracker() {
       {/* List */}
       {transfusions.length === 0 ? (
         <div className="text-center py-16">
-          <Droplets size={48} className="text-slate-700 mx-auto mb-4" />
-          <p className="text-slate-500">Belum ada data transfusi</p>
+          <Droplets size={48} className="text-slate-600 mx-auto mb-4" />
+          <p className="text-slate-400">Belum ada data transfusi</p>
         </div>
       ) : (
-        <div className="glass-card overflow-hidden">
+        <div className="glass-card overflow-hidden border border-bg-border">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-bg-border bg-bg-primary/50">
-                <th className="table-header">Tanggal</th>
-                <th className="table-header">Produk</th>
-                <th className="table-header text-center">Kantong</th>
-                <th className="table-header text-center">Hb Sebelum</th>
-                <th className="table-header text-center">Hb Sesudah</th>
-                <th className="table-header text-center">Efek</th>
+              <tr className="border-b border-bg-border bg-bg-secondary/40">
+                <th className="table-header">TANGGAL</th>
+                <th className="table-header">PRODUK</th>
+                <th className="table-header text-center">KANTONG</th>
+                <th className="table-header text-center">HB SEBELUM</th>
+                <th className="table-header text-center">HB SESUDAH</th>
+                <th className="table-header text-center">EFEK</th>
                 <th className="table-header">RS</th>
                 <th className="table-header"></th>
               </tr>
@@ -182,21 +182,21 @@ export default function TransfusionTracker() {
                 const hbChange = t.hbBefore !== undefined && t.hbAfter !== undefined
                   ? t.hbAfter - t.hbBefore : null;
                 return (
-                  <tr key={t.id} className="table-row" id={`trans-row-${t.id}`}>
-                    <td className="table-cell">{formatDateShort(t.transfusionDate)}</td>
+                  <tr key={t.id} className="table-row border-b border-bg-border/60 hover:bg-bg-elevated/40" id={`trans-row-${t.id}`}>
+                    <td className="table-cell font-medium text-white">{formatDateShort(t.transfusionDate)}</td>
                     <td className="table-cell">
-                      <span className="badge badge-red text-xs">{t.productType}</span>
+                      <span className="badge badge-red text-xs font-semibold">{t.productType}</span>
                     </td>
                     <td className="table-cell text-center font-bold text-white">{t.units}</td>
                     <td className="table-cell text-center">
-                      {t.hbBefore !== undefined ? <span className="text-red-400 font-medium">{formatNumber(t.hbBefore, 1)}</span> : '—'}
+                      {t.hbBefore !== undefined ? <span className="text-red-400 font-bold">{formatNumber(t.hbBefore, 1)}</span> : '—'}
                     </td>
                     <td className="table-cell text-center">
-                      {t.hbAfter !== undefined ? <span className="text-emerald-400 font-medium">{formatNumber(t.hbAfter, 1)}</span> : '—'}
+                      {t.hbAfter !== undefined ? <span className="text-emerald-400 font-bold">{formatNumber(t.hbAfter, 1)}</span> : '—'}
                     </td>
                     <td className="table-cell text-center">
                       {hbChange !== null ? (
-                        <span className={cn('flex items-center justify-center gap-1 text-xs font-medium', hbChange > 0 ? 'text-emerald-400' : 'text-red-400')}>
+                        <span className={cn('flex items-center justify-center gap-1 text-xs font-bold', hbChange > 0 ? 'text-emerald-400' : 'text-red-400')}>
                           {hbChange > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                           {hbChange > 0 ? '+' : ''}{formatNumber(hbChange, 1)}
                         </span>
@@ -204,7 +204,7 @@ export default function TransfusionTracker() {
                     </td>
                     <td className="table-cell text-slate-400 text-xs">{t.hospital}</td>
                     <td className="table-cell">
-                      <button onClick={() => deleteTrans(t.id)} id={`delete-trans-${t.id}`} className="p-1 text-slate-600 hover:text-red-400 transition-colors">
+                      <button onClick={() => deleteTrans(t.id)} id={`delete-trans-${t.id}`} className="p-1 text-slate-500 hover:text-red-400 transition-colors">
                         <Trash2 size={13} />
                       </button>
                     </td>

@@ -171,7 +171,7 @@ export default function Medications() {
                 <div className="text-xs text-slate-400 mt-0.5">
                   {m.dosage} · {m.frequency}
                 </div>
-                <div className="text-xs text-slate-600 mt-0.5">
+                <div className="text-xs text-slate-400 mt-0.5">
                   {formatDateShort(m.startDate)} {m.endDate ? `→ ${formatDateShort(m.endDate)}` : '→ sekarang'}
                   {m.prescribedBy && ` · ${m.prescribedBy}`}
                 </div>

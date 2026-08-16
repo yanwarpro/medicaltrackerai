@@ -170,12 +170,12 @@ export default function DoctorReport() {
           <h3 className="text-sm font-bold text-accent-400 print:text-blue-700 uppercase tracking-wider mb-3">Tren Laboratorium</h3>
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-bg-border print:border-gray-300">
-                <th className="text-left py-2 text-slate-500 print:text-gray-600 font-medium">Parameter</th>
+              <tr className="border-b border-bg-border bg-bg-secondary/40 print:border-gray-300">
+                <th className="table-header">PARAMETER</th>
                 {[...new Set(labResults.map((r) => r.testDate))].sort().slice(-3).map((d) => (
-                  <th key={d} className="text-right py-2 text-slate-500 print:text-gray-600 font-medium">{formatDateShort(d)}</th>
+                  <th key={d} className="table-header text-right">{formatDateShort(d)}</th>
                 ))}
-                <th className="text-right py-2 text-slate-500 print:text-gray-600 font-medium">Tren</th>
+                <th className="table-header text-right">TREN</th>
               </tr>
             </thead>
             <tbody>
