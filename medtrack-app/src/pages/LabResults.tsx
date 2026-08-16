@@ -76,7 +76,7 @@ export default function LabResults() {
   if (!activePatient) {
     return (
       <div className="page-container flex items-center justify-center min-h-[60vh]">
-        <p className="text-slate-500">Pilih pasien terlebih dahulu</p>
+        <p className="text-slate-400">Pilih pasien terlebih dahulu</p>
       </div>
     );
   }
@@ -96,11 +96,11 @@ export default function LabResults() {
 
       {/* Add Form */}
       {showAddForm && (
-        <div className="glass-card p-5 space-y-4 border border-accent-500/20">
+        <div className="glass-card p-5 space-y-4 border border-accent-500/30">
           <div className="flex items-center justify-between">
             <h3 className="section-title">Tambah Hasil Lab Manual</h3>
             <button onClick={() => setShowAddForm(false)} id="close-add-lab-btn">
-              <X size={16} className="text-slate-400" />
+              <X size={16} className="text-slate-400 hover:text-white" />
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -151,7 +151,9 @@ export default function LabResults() {
             onClick={() => setFilterDate('')}
             id="filter-all-dates"
             className={cn('px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
-              !filterDate ? 'bg-accent-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-bg-elevated text-slate-700 dark:text-slate-400 border-slate-300 dark:border-bg-border hover:border-accent-500/30'
+              !filterDate
+                ? 'bg-accent-500 text-white shadow-glow-teal border-accent-500'
+                : 'bg-bg-elevated text-slate-300 border-bg-border hover:border-accent-500/50'
             )}
           >
             Semua Tanggal
@@ -162,7 +164,9 @@ export default function LabResults() {
               onClick={() => setFilterDate(d)}
               id={`filter-date-${d}`}
               className={cn('px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
-                filterDate === d ? 'bg-accent-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-bg-elevated text-slate-700 dark:text-slate-400 border-slate-300 dark:border-bg-border hover:border-accent-500/30'
+                filterDate === d
+                  ? 'bg-accent-500 text-white shadow-glow-teal border-accent-500'
+                  : 'bg-bg-elevated text-slate-300 border-bg-border hover:border-accent-500/50'
               )}
             >
               {formatDateShort(d)}
@@ -174,28 +178,29 @@ export default function LabResults() {
       {/* Results Grouped by Date */}
       {grouped.length === 0 ? (
         <div className="text-center py-16">
-          <FlaskConical size={48} className="text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-500">Belum ada hasil lab. Upload dokumen lab dan ekstrak dengan AI, atau tambahkan manual.</p>
+          <FlaskConical size={48} className="text-slate-600 mx-auto mb-4" />
+          <p className="text-slate-400">Belum ada hasil lab. Upload dokumen lab dan ekstrak dengan AI, atau tambahkan manual.</p>
         </div>
       ) : (
         <div className="space-y-6">
           {grouped.map(({ date, results }) => (
-            <div key={date} className="glass-card overflow-hidden">
-              <div className="px-5 py-3 border-b border-bg-border bg-slate-100 dark:bg-bg-primary/50 flex items-center justify-between">
+            <div key={date} className="glass-card overflow-hidden border border-bg-border">
+              {/* Date Group Header */}
+              <div className="px-5 py-3 border-b border-bg-border bg-bg-elevated flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <FlaskConical size={15} className="text-accent-500" />
+                  <FlaskConical size={15} className="text-accent-400" />
                   <span className="text-sm font-bold text-white">{formatDate(date)}</span>
                   <span className="badge-gray text-xs">{results.length} parameter</span>
                 </div>
               </div>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-bg-border/50">
-                    <th className="table-header">Parameter</th>
-                    <th className="table-header text-right">Nilai</th>
-                    <th className="table-header">Satuan</th>
-                    <th className="table-header">Referensi</th>
-                    <th className="table-header">Status</th>
+                  <tr className="border-b border-bg-border bg-bg-secondary/40">
+                    <th className="table-header">PARAMETER</th>
+                    <th className="table-header text-right">NILAI</th>
+                    <th className="table-header">SATUAN</th>
+                    <th className="table-header">REFERENSI</th>
+                    <th className="table-header">STATUS</th>
                     <th className="table-header"></th>
                   </tr>
                 </thead>
@@ -203,20 +208,20 @@ export default function LabResults() {
                   {results
                     .sort((a, b) => a.testName.localeCompare(b.testName))
                     .map((r) => (
-                      <tr key={r.id} className="table-row" id={`lab-result-${r.id}`}>
+                      <tr key={r.id} className="table-row border-b border-bg-border/60 hover:bg-bg-elevated/40" id={`lab-result-${r.id}`}>
                         <td className="table-cell">
                           <div className="font-semibold text-white">{r.testName}</div>
-                          {!r.verified && <span className="text-xs text-amber-500">Belum dikonfirmasi</span>}
+                          {!r.verified && <span className="text-xs text-amber-400 font-medium">Belum dikonfirmasi</span>}
                         </td>
                         <td className={cn('table-cell text-right font-mono font-bold text-base',
-                          r.abnormalFlag === 'H' || r.abnormalFlag === 'HH' ? 'text-amber-600 dark:text-amber-400' :
-                          r.abnormalFlag === 'L' || r.abnormalFlag === 'LL' ? 'text-blue-600 dark:text-blue-400' :
-                          'text-slate-800 dark:text-white'
+                          r.abnormalFlag === 'H' || r.abnormalFlag === 'HH' ? 'text-amber-400' :
+                          r.abnormalFlag === 'L' || r.abnormalFlag === 'LL' ? 'text-blue-400' :
+                          'text-white'
                         )}>
                           {formatNumber(r.value, 2)}
                         </td>
-                        <td className="table-cell text-slate-500">{r.unit || '—'}</td>
-                        <td className="table-cell text-slate-500 text-xs">
+                        <td className="table-cell text-slate-400">{r.unit || '—'}</td>
+                        <td className="table-cell text-slate-400 text-xs">
                           {r.referenceLow !== undefined && r.referenceHigh !== undefined
                             ? `${r.referenceLow} – ${r.referenceHigh}`
                             : '—'}
@@ -236,7 +241,7 @@ export default function LabResults() {
                           )}
                         </td>
                         <td className="table-cell">
-                          <button onClick={() => deleteResult(r.id)} id={`delete-lab-${r.id}`} className="p-1 text-slate-400 hover:text-red-500 transition-colors">
+                          <button onClick={() => deleteResult(r.id)} id={`delete-lab-${r.id}`} className="p-1 text-slate-500 hover:text-red-400 transition-colors">
                             <Trash2 size={13} />
                           </button>
                         </td>
