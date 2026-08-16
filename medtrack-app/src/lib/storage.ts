@@ -285,6 +285,7 @@ export const documentStorage = {
   },
   delete(id: string): void {
     saveAll(KEYS.DOCUMENTS, documentStorage.getAll().filter((d) => d.id !== id));
+    labResultStorage.deleteByDocument(id);
     const supabase = getSupabaseClient();
     if (supabase) {
       supabase.from('documents').delete().eq('id', id).then();
