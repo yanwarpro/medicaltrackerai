@@ -1,4 +1,5 @@
 {
+  "installCommand": "cd medtrack-app && npm install",
   "buildCommand": "cd medtrack-app && npm run build",
   "outputDirectory": "medtrack-app/dist",
   "framework": "vite",
