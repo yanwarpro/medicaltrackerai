@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { MedDocument, ExtractedLabItem, ExtractionResult } from '../../lib/types';
 import { extractDocumentWithGemini } from '../../lib/gemini';
-import { documentStorage, labResultStorage } from '../../lib/storage';
+import { documentStorage, labResultStorage, medicationStorage } from '../../lib/storage';
 import { formatNumber, cn } from '../../lib/utils';
 import { normalizeLabName } from '../../lib/checklist';
 
@@ -112,27 +112,49 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
 
     const docDate = result.identity.documentDate || doc.documentDate;
 
-    await labResultStorage.saveBatch(
-      toSave.map((item) => ({
-        patientId,
-        documentId: doc.id,
-        testDate: docDate,
-        testName: item.testName,
-        normalizedName: normalizeLabName(item.normalizedName || item.testName),
-        value: item.action === 'edited' && item.editedValue !== undefined ? item.editedValue : item.value,
-        valueText: item.valueText,
-        unit: item.action === 'edited' ? (item.editedUnit || item.unit) : item.unit,
-        referenceLow: item.referenceLow,
-        referenceHigh: item.referenceHigh,
-        abnormalFlag: item.abnormalFlag,
-        confidence: item.confidence,
-        verified: item.action === 'confirmed' || item.action === 'edited',
-      }))
-    );
+    if (toSave.length > 0) {
+      await labResultStorage.saveBatch(
+        toSave.map((item) => ({
+          patientId,
+          documentId: doc.id,
+          testDate: docDate,
+          testName: item.testName,
+          normalizedName: normalizeLabName(item.normalizedName || item.testName),
+          value: item.action === 'edited' && item.editedValue !== undefined ? item.editedValue : item.value,
+          valueText: item.valueText,
+          unit: item.action === 'edited' ? (item.editedUnit || item.unit) : item.unit,
+          referenceLow: item.referenceLow,
+          referenceHigh: item.referenceHigh,
+          abnormalFlag: item.abnormalFlag,
+          confidence: item.confidence,
+          verified: item.action === 'confirmed' || item.action === 'edited',
+        }))
+      );
+    }
+
+    if (result.medicationItems && result.medicationItems.length > 0) {
+      const medsToSave = result.medicationItems.filter((m) => m.action !== 'rejected');
+      medsToSave.forEach((med) => {
+        medicationStorage.save({
+          patientId,
+          medicationName: med.medicationName,
+          dosage: med.dosage,
+          frequency: med.frequency,
+          startDate: docDate,
+          notes: med.notes || `Diekstrak dari ${doc.filename}`,
+          isActive: true,
+        });
+      });
+    }
+
+    const totalItems = result.labItems.length + (result.medicationItems?.length || 0);
+    const avgConfidence = totalItems > 0
+      ? [...result.labItems, ...(result.medicationItems || [])].reduce((s, i) => s + i.confidence, 0) / totalItems
+      : 0.8;
 
     documentStorage.update(doc.id, {
       status: 'confirmed',
-      extractionConfidence: result.labItems.reduce((s, i) => s + i.confidence, 0) / result.labItems.length,
+      extractionConfidence: avgConfidence,
     });
     setStep('done');
   }

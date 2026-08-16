@@ -10,6 +10,7 @@ import type {
   AppSettings,
 } from './types';
 import { getSupabaseClient } from './supabase';
+import { isMedicationName } from './utils';
 
 // ============================================================
 // Storage Keys
@@ -296,30 +297,65 @@ export const documentStorage = {
 // ============================================================
 export const labResultStorage = {
   getAll(patientId?: string): LabResult[] {
-    const all = getAll<LabResult>(KEYS.LAB_RESULTS);
+    let all = getAll<LabResult>(KEYS.LAB_RESULTS);
+
+    // Auto-clean misplaced medications from lab results
+    const misplaced = all.filter((r) => isMedicationName(r.testName) || isMedicationName(r.normalizedName));
+    if (misplaced.length > 0) {
+      const existingMeds = getAll<Medication>(KEYS.MEDICATIONS);
+      misplaced.forEach((m) => {
+        const alreadyExists = existingMeds.some((e) => e.medicationName.toLowerCase() === m.testName.toLowerCase() && e.patientId === m.patientId);
+        if (!alreadyExists) {
+          existingMeds.push({
+            id: generateId(),
+            patientId: m.patientId,
+            medicationName: m.testName,
+            dosage: m.unit || '',
+            frequency: '',
+            startDate: m.testDate,
+            notes: 'Dipindahkan otomatis dari hasil lab',
+            isActive: true,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      });
+      saveAll(KEYS.MEDICATIONS, existingMeds);
+
+      all = all.filter((r) => !isMedicationName(r.testName) && !isMedicationName(r.normalizedName));
+      saveAll(KEYS.LAB_RESULTS, all);
+
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        misplaced.forEach((m) => {
+          supabase.from('lab_results').delete().eq('id', m.id).then();
+        });
+      }
+    }
 
     const supabase = getSupabaseClient();
     if (supabase && patientId) {
       supabase.from('lab_results').select('*').eq('patient_id', patientId).then(({ data, error }) => {
         if (!error && data) {
-          const mapped: LabResult[] = data.map((r) => ({
-            id: r.id,
-            patientId: r.patient_id,
-            documentId: r.document_id || undefined,
-            testDate: r.test_date,
-            testName: r.test_name,
-            normalizedName: r.normalized_name,
-            value: r.value_numeric !== null ? Number(r.value_numeric) : null,
-            valueText: r.value_text || undefined,
-            unit: r.unit || '',
-            referenceLow: r.reference_low !== null ? Number(r.reference_low) : undefined,
-            referenceHigh: r.reference_high !== null ? Number(r.reference_high) : undefined,
-            abnormalFlag: r.abnormal_flag as any,
-            confidence: r.confidence !== null ? Number(r.confidence) : 1,
-            verified: r.verified !== false,
-            notes: r.notes || undefined,
-            createdAt: r.created_at,
-          }));
+          const mapped: LabResult[] = data
+            .map((r) => ({
+              id: r.id,
+              patientId: r.patient_id,
+              documentId: r.document_id || undefined,
+              testDate: r.test_date,
+              testName: r.test_name,
+              normalizedName: r.normalized_name,
+              value: r.value_numeric !== null ? Number(r.value_numeric) : null,
+              valueText: r.value_text || undefined,
+              unit: r.unit || '',
+              referenceLow: r.reference_low !== null ? Number(r.reference_low) : undefined,
+              referenceHigh: r.reference_high !== null ? Number(r.reference_high) : undefined,
+              abnormalFlag: r.abnormal_flag as any,
+              confidence: r.confidence !== null ? Number(r.confidence) : 1,
+              verified: r.verified !== false,
+              notes: r.notes || undefined,
+              createdAt: r.created_at,
+            }))
+            .filter((r) => !isMedicationName(r.testName) && !isMedicationName(r.normalizedName));
           const localForPatient = all.filter((r) => r.patientId === patientId);
           const merged = [
             ...mapped,

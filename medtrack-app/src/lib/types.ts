@@ -201,6 +201,16 @@ export interface ExtractedLabItem {
   editedUnit?: string;
 }
 
+export interface ExtractedMedItem {
+  id: string;
+  medicationName: string;
+  dosage: string;
+  frequency: string;
+  notes?: string;
+  action: ExtractionAction;
+  confidence: number;
+}
+
 export interface DocumentIdentity {
   patientName?: string;
   documentDate?: string;
@@ -213,6 +223,7 @@ export interface ExtractionResult {
   documentId: string;
   identity: DocumentIdentity;
   labItems: ExtractedLabItem[];
+  medicationItems?: ExtractedMedItem[];
   rawText?: string;
 }
 

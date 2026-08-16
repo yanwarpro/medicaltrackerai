@@ -78,3 +78,20 @@ export function truncate(str: string, maxLength = 40): string {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength) + '…';
 }
+
+export function isMedicationName(name: string): boolean {
+  if (!name) return false;
+  const upper = name.toUpperCase();
+  if (/\b(TABLET|TAB|CAPSUL|CAPSULE|KAPSUL|SYRUP|SIRUP|AMPUL|VIAL|INJEKSI|INJECTION|SUPP|CREAM|KRIM|SALEP|DROPS|INFUS)\b/.test(upper)) {
+    return true;
+  }
+  if (/\d+\s*(MG|MCG|IU|GR|ML)\b/.test(upper)) {
+    return true;
+  }
+  const knownMeds = [
+    'DOMPERIDON', 'LANSOPRAZOL', 'ALLOPURINOL', 'ASAM FOLAT', 'PARACETAMOL',
+    'AMLODIPINE', 'CANDESARTAN', 'SIMVASTATIN', 'METFORMIN', 'FUROSEMIDE',
+    'SPIRONOLACTONE', 'OMEPRAZOL', 'RANITIDINE', 'BICNAT', 'KETOSTERIL', 'NEUROBION'
+  ];
+  return knownMeds.some((m) => upper.includes(m));
+}

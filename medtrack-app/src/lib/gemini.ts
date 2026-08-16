@@ -1,11 +1,13 @@
 import type {
   ExtractionResult,
   ExtractedLabItem,
+  ExtractedMedItem,
   DocumentIdentity,
   AbnormalFlag,
 } from './types';
+import { isMedicationName } from './utils';
 
-const EXTRACTION_PROMPT = `You are a medical document analyzer. Analyze the provided medical document image and extract all laboratory results and document metadata.
+const EXTRACTION_PROMPT = `You are a medical document analyzer. Analyze the provided medical document image and extract all laboratory results, prescribed medications, and document metadata.
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -18,7 +20,7 @@ Return ONLY a valid JSON object with this exact structure:
   },
   "labItems": [
     {
-      "testName": "original name from document",
+      "testName": "original laboratory test name from document",
       "normalizedName": "standard English name",
       "value": number or null,
       "valueText": "string representation or null",
@@ -28,17 +30,28 @@ Return ONLY a valid JSON object with this exact structure:
       "abnormalFlag": "H" | "L" | "HH" | "LL" | "N" | null,
       "confidence": 0.0 to 1.0
     }
+  ],
+  "medicationItems": [
+    {
+      "medicationName": "name of prescribed drug e.g. Domperidon 10 mg Tablet",
+      "dosage": "dosage string e.g. 10 mg",
+      "frequency": "frequency string e.g. 3x1 tablet",
+      "notes": "additional notes or instructions",
+      "confidence": 0.0 to 1.0
+    }
   ]
 }
 
 CRITICAL RULES:
-1. Do NOT invent values that are not visible in the document
-2. If a value is not found, set value to null
-3. Extract ALL lab parameters visible in the document
-4. Include reference ranges if shown
-5. Set confidence based on how clearly you can read the value (0.9+ = very clear, 0.7-0.9 = readable, <0.7 = uncertain)
-6. For abnormalFlag: H=high, L=low, HH=critically high, LL=critically low, N=normal, null=no flag shown
-7. Return ONLY the JSON object, no other text`;
+1. Do NOT put medications (e.g. tablets, capsules, syrups, injections) into labItems. Separate medications into medicationItems!
+2. Do NOT invent values that are not visible in the document
+3. If a value is not found, set value to null
+4. Extract ALL lab parameters visible in the document into labItems
+5. Extract ALL medications visible in the document into medicationItems
+6. Include reference ranges for lab items if shown
+7. Set confidence based on how clearly you can read the value (0.9+ = very clear, 0.7-0.9 = readable, <0.7 = uncertain)
+8. For abnormalFlag: H=high, L=low, HH=critically high, LL=critically low, N=normal, null=no flag shown
+9. Return ONLY the JSON object, no other text`;
 
 const SUMMARY_PROMPT = `You are a medical records assistant helping a family caregiver understand their patient's medical data. 
 
@@ -113,7 +126,7 @@ export async function extractDocumentWithGemini(
   const text = result.response.text();
 
   // Parse JSON from response
-  let parsed: { identity: DocumentIdentity; labItems: ExtractedLabItem[] };
+  let parsed: { identity: DocumentIdentity; labItems: ExtractedLabItem[]; medicationItems?: ExtractedMedItem[] };
   try {
     // Try to extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -121,28 +134,63 @@ export async function extractDocumentWithGemini(
     parsed = JSON.parse(jsonMatch[0]);
   } catch (err) {
     console.error('Failed to parse Gemini response:', text);
-    throw new Error('Gagal membaca respons AI. Pastikan dokumen berupa hasil lab yang jelas.');
+    throw new Error('Gagal membaca respons AI. Pastikan dokumen medis jelas.');
   }
 
-  // Map to our type with IDs
-  const labItems: ExtractedLabItem[] = (parsed.labItems || []).map((item, index) => ({
-    id: `${documentId}-item-${index}`,
-    testName: item.testName || '',
-    normalizedName: item.normalizedName || item.testName || '',
-    value: item.value ?? null,
-    valueText: item.valueText ?? undefined,
-    unit: item.unit || '',
-    referenceLow: item.referenceLow ?? undefined,
-    referenceHigh: item.referenceHigh ?? undefined,
-    abnormalFlag: (item.abnormalFlag as AbnormalFlag) ?? null,
-    confidence: item.confidence ?? 0.8,
-    action: 'confirmed' as const,
-  }));
+  const rawLabItems = parsed.labItems || [];
+  const rawMedItems = parsed.medicationItems || [];
+
+  const labItems: ExtractedLabItem[] = [];
+  const medicationItems: ExtractedMedItem[] = [];
+
+  // Map medication items
+  rawMedItems.forEach((m, index) => {
+    medicationItems.push({
+      id: `${documentId}-med-${index}`,
+      medicationName: m.medicationName || '',
+      dosage: m.dosage || '',
+      frequency: m.frequency || '',
+      notes: m.notes || undefined,
+      confidence: m.confidence ?? 0.85,
+      action: 'confirmed' as const,
+    });
+  });
+
+  // Map lab items with auto-correction for misplaced medications
+  rawLabItems.forEach((item, index) => {
+    const testName = item.testName || '';
+    if (isMedicationName(testName) || isMedicationName(item.normalizedName || '')) {
+      medicationItems.push({
+        id: `${documentId}-med-relocated-${index}`,
+        medicationName: testName,
+        dosage: item.unit || '',
+        frequency: '',
+        notes: item.valueText || undefined,
+        confidence: item.confidence ?? 0.8,
+        action: 'confirmed' as const,
+      });
+    } else {
+      labItems.push({
+        id: `${documentId}-item-${index}`,
+        testName,
+        normalizedName: item.normalizedName || testName,
+        value: item.value ?? null,
+        valueText: item.valueText ?? undefined,
+        unit: item.unit || '',
+        referenceLow: item.referenceLow ?? undefined,
+        referenceHigh: item.referenceHigh ?? undefined,
+        abnormalFlag: (item.abnormalFlag as AbnormalFlag) ?? null,
+        confidence: item.confidence ?? 0.8,
+        action: 'confirmed' as const,
+      });
+    }
+  });
 
   return {
     documentId,
     identity: parsed.identity || {},
     labItems,
+    medicationItems,
   };
 }
 

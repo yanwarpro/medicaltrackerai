@@ -10,7 +10,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { labResultStorage } from '../lib/storage';
 import { PARAM_OPTIONS } from '../lib/checklist';
-import { formatDateShort, formatNumber, calcDelta, cn } from '../lib/utils';
+import { formatDateShort, formatNumber, calcDelta, cn, isMedicationName } from '../lib/utils';
 
 const COLORS = [
   '#06b6d4', // cyan
@@ -27,7 +27,10 @@ export default function LabTrends() {
   const [dateRange, setDateRange] = useState<'all' | '1y' | '6m' | '3m'>('all');
 
   const labResults = useMemo(() =>
-    activePatient ? labResultStorage.getAll(activePatient.id).filter((r) => r.verified) : [],
+    activePatient
+      ? labResultStorage.getAll(activePatient.id)
+          .filter((r) => r.verified && !isMedicationName(r.testName) && !isMedicationName(r.normalizedName))
+      : [],
     [activePatient]
   );
 
@@ -50,14 +53,17 @@ export default function LabTrends() {
     Object.keys(counts).forEach((normKey) => {
       if (!existingNorms.has(normKey)) {
         const sample = sampleMap[normKey];
-        list.push({
-          label: sample ? sample.testName : normKey,
-          normalized: normKey,
-          unit: sample?.unit || '',
-          refLow: sample?.referenceLow || 0,
-          refHigh: sample?.referenceHigh || 100,
-          count: counts[normKey],
-        });
+        const label = sample ? sample.testName : normKey;
+        if (!isMedicationName(label) && !isMedicationName(normKey)) {
+          list.push({
+            label,
+            normalized: normKey,
+            unit: sample?.unit || '',
+            refLow: sample?.referenceLow || 0,
+            refHigh: sample?.referenceHigh || 100,
+            count: counts[normKey],
+          });
+        }
       }
     });
 
