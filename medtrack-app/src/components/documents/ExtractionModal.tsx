@@ -52,10 +52,22 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
   }
 
   function updateItem(id: string, updates: Partial<ExtractedLabItem>) {
-    if (!result) return;
-    setResult({
-      ...result,
-      labItems: result.labItems.map((item) => item.id === id ? { ...item, ...updates } : item),
+    setResult((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        labItems: prev.labItems.map((item) => item.id === id ? { ...item, ...updates } : item),
+      };
+    });
+  }
+
+  function setAllAction(action: 'confirmed' | 'rejected') {
+    setResult((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        labItems: prev.labItems.map((item) => ({ ...item, action })),
+      };
     });
   }
 
@@ -230,18 +242,18 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
                 </span>
                 <div className="flex gap-2 ml-auto">
                   <button
-                    onClick={() => result.labItems.forEach((i) => updateItem(i.id, { action: 'confirmed' }))}
+                    onClick={() => setAllAction('confirmed')}
                     id="confirm-all-btn"
-                    className="px-2 py-1 text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20"
+                    className="px-3 py-1.5 text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition-all flex items-center gap-1"
                   >
-                    Konfirmasi Semua
+                    <CheckCircle size={13} /> Konfirmasi Semua
                   </button>
                   <button
-                    onClick={() => result.labItems.forEach((i) => updateItem(i.id, { action: 'rejected' }))}
+                    onClick={() => setAllAction('rejected')}
                     id="reject-all-btn"
-                    className="px-2 py-1 text-xs bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20"
+                    className="px-3 py-1.5 text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition-all flex items-center gap-1"
                   >
-                    Tolak Semua
+                    <XCircle size={13} /> Tolak Semua
                   </button>
                 </div>
               </div>
@@ -329,26 +341,36 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
                               <button
                                 onClick={() => updateItem(item.id, { action: item.action === 'confirmed' ? 'pending' : 'confirmed' })}
                                 id={`confirm-${item.id}`}
-                                className={cn('p-1 rounded transition-colors', item.action === 'confirmed' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-500 hover:text-emerald-400')}
+                                className={cn(
+                                  'p-1.5 rounded-lg transition-all',
+                                  item.action === 'confirmed'
+                                    ? 'text-emerald-400 bg-emerald-500/20 ring-1 ring-emerald-500/40 shadow-sm'
+                                    : 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10'
+                                )}
                                 title="Konfirmasi"
                               >
-                                <CheckCircle size={14} />
+                                <CheckCircle size={15} className={item.action === 'confirmed' ? 'fill-emerald-500/30' : ''} />
                               </button>
                               <button
                                 onClick={() => startEdit(item)}
                                 id={`edit-${item.id}`}
-                                className="p-1 rounded text-slate-500 hover:text-accent-400 transition-colors"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-accent-400 hover:bg-accent-500/10 transition-all"
                                 title="Edit"
                               >
-                                <Edit2 size={13} />
+                                <Edit2 size={14} />
                               </button>
                               <button
                                 onClick={() => updateItem(item.id, { action: item.action === 'rejected' ? 'pending' : 'rejected' })}
                                 id={`reject-${item.id}`}
-                                className={cn('p-1 rounded transition-colors', item.action === 'rejected' ? 'text-red-400 bg-red-500/10' : 'text-slate-500 hover:text-red-400')}
+                                className={cn(
+                                  'p-1.5 rounded-lg transition-all',
+                                  item.action === 'rejected'
+                                    ? 'text-red-400 bg-red-500/20 ring-1 ring-red-500/40 shadow-sm'
+                                    : 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'
+                                )}
                                 title="Tolak"
                               >
-                                <XCircle size={14} />
+                                <XCircle size={15} className={item.action === 'rejected' ? 'fill-red-500/30' : ''} />
                               </button>
                             </div>
                           )}
