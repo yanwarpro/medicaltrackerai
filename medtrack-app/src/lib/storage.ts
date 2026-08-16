@@ -215,8 +215,13 @@ export const documentStorage = {
             notes: d.notes || undefined,
             createdAt: d.created_at,
           }));
+          const localForPatient = all.filter((d) => d.patientId === patientId);
+          const merged = [
+            ...mapped,
+            ...localForPatient.filter((localItem) => !mapped.some((s) => s.id === localItem.id))
+          ];
           const existingOtherPatients = all.filter((d) => d.patientId !== patientId);
-          saveAll(KEYS.DOCUMENTS, [...existingOtherPatients, ...mapped]);
+          saveAll(KEYS.DOCUMENTS, [...existingOtherPatients, ...merged]);
         }
       });
     }
@@ -308,8 +313,13 @@ export const labResultStorage = {
             notes: r.notes || undefined,
             createdAt: r.created_at,
           }));
+          const localForPatient = all.filter((r) => r.patientId === patientId);
+          const merged = [
+            ...mapped,
+            ...localForPatient.filter((localItem) => !mapped.some((s) => s.id === localItem.id))
+          ];
           const existingOtherPatients = all.filter((r) => r.patientId !== patientId);
-          saveAll(KEYS.LAB_RESULTS, [...existingOtherPatients, ...mapped]);
+          saveAll(KEYS.LAB_RESULTS, [...existingOtherPatients, ...merged]);
         }
       });
     }
@@ -443,8 +453,13 @@ export const hospitalizationStorage = {
             createdAt: h.created_at,
             updatedAt: h.updated_at,
           }));
+          const localForPatient = all.filter((h) => h.patientId === patientId);
+          const merged = [
+            ...mapped,
+            ...localForPatient.filter((localItem) => !mapped.some((s) => s.id === localItem.id))
+          ];
           const existingOtherPatients = all.filter((h) => h.patientId !== patientId);
-          saveAll(KEYS.HOSPITALIZATIONS, [...existingOtherPatients, ...mapped]);
+          saveAll(KEYS.HOSPITALIZATIONS, [...existingOtherPatients, ...merged]);
         }
       });
     }
@@ -544,8 +559,13 @@ export const transfusionStorage = {
             notes: t.notes || '',
             createdAt: t.created_at,
           }));
+          const localForPatient = all.filter((t) => t.patientId === patientId);
+          const merged = [
+            ...mapped,
+            ...localForPatient.filter((localItem) => !mapped.some((s) => s.id === localItem.id))
+          ];
           const existingOtherPatients = all.filter((t) => t.patientId !== patientId);
-          saveAll(KEYS.TRANSFUSIONS, [...existingOtherPatients, ...mapped]);
+          saveAll(KEYS.TRANSFUSIONS, [...existingOtherPatients, ...merged]);
         }
       });
     }
@@ -633,8 +653,13 @@ export const medicationStorage = {
             isActive: m.is_active !== false,
             createdAt: m.created_at,
           }));
+          const localForPatient = all.filter((m) => m.patientId === patientId);
+          const merged = [
+            ...mapped,
+            ...localForPatient.filter((localItem) => !mapped.some((s) => s.id === localItem.id))
+          ];
           const existingOtherPatients = all.filter((m) => m.patientId !== patientId);
-          saveAll(KEYS.MEDICATIONS, [...existingOtherPatients, ...mapped]);
+          saveAll(KEYS.MEDICATIONS, [...existingOtherPatients, ...merged]);
         }
       });
     }
