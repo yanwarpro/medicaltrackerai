@@ -187,9 +187,14 @@ export default function LabResults() {
             <div key={date} className="glass-card overflow-hidden border border-bg-border">
               {/* Date Group Header */}
               <div className="px-5 py-3 border-b border-bg-border bg-bg-elevated flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <FlaskConical size={15} className="text-accent-400" />
                   <span className="text-sm font-bold text-white">{formatDate(date)}</span>
+                  {results.find((r) => r.facility)?.facility && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-accent-500/10 text-accent-400 border border-accent-500/20 font-medium">
+                      🏥 {results.find((r) => r.facility)?.facility}
+                    </span>
+                  )}
                   <span className="badge-gray text-xs">{results.length} parameter</span>
                 </div>
               </div>

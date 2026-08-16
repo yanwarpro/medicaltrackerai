@@ -31,9 +31,11 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
 export default function Documents() {
   const { activePatient, settings } = useApp();
   const [filterCategory, setFilterCategory] = useState<DocumentCategory | 'all'>('all');
+  const [filterFacility, setFilterFacility] = useState<string>('all');
   const [uploading, setUploading] = useState(false);
   const [uploadForm, setUploadForm] = useState({
     category: 'Laboratory' as DocumentCategory,
+    facility: '',
     documentDate: new Date().toISOString().slice(0, 10),
     notes: '',
   });
@@ -45,12 +47,27 @@ export default function Documents() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const documents = useMemo(() => {
+  const availableFacilities = useMemo(() => {
     if (!activePatient) return [];
     const all = documentStorage.getAll(activePatient.id);
-    if (filterCategory === 'all') return all.sort((a, b) => b.uploadDate.localeCompare(a.uploadDate));
-    return all.filter((d) => d.category === filterCategory).sort((a, b) => b.uploadDate.localeCompare(a.uploadDate));
-  }, [activePatient, filterCategory, refreshKey]);
+    const set = new Set<string>();
+    all.forEach((d) => {
+      if (d.facility && d.facility.trim()) set.add(d.facility.trim());
+    });
+    return Array.from(set).sort();
+  }, [activePatient, refreshKey]);
+
+  const documents = useMemo(() => {
+    if (!activePatient) return [];
+    let all = documentStorage.getAll(activePatient.id);
+    if (filterCategory !== 'all') {
+      all = all.filter((d) => d.category === filterCategory);
+    }
+    if (filterFacility !== 'all') {
+      all = all.filter((d) => d.facility === filterFacility);
+    }
+    return all.sort((a, b) => b.uploadDate.localeCompare(a.uploadDate));
+  }, [activePatient, filterCategory, filterFacility, refreshKey]);
 
   const handleFileDrop = useCallback((files: FileList | null) => {
     if (!files) return;
@@ -75,6 +92,7 @@ export default function Documents() {
           patientId: activePatient.id,
           filename: file.name,
           category: uploadForm.category,
+          facility: uploadForm.facility.trim() || undefined,
           documentDate: uploadForm.documentDate,
           uploadDate: new Date().toISOString(),
           fileDataUrl: base64,
@@ -151,7 +169,7 @@ export default function Documents() {
             ))}
           </div>
           {error && <p className="text-red-400 text-xs flex items-center gap-1"><AlertCircle size={13} />{error}</p>}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="label-text">Kategori Dokumen</label>
               <select
@@ -162,6 +180,16 @@ export default function Documents() {
               >
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="label-text">Fasilitas / RS (Opsional)</label>
+              <input
+                className="input-field"
+                value={uploadForm.facility}
+                onChange={(e) => setUploadForm((f) => ({ ...f, facility: e.target.value }))}
+                placeholder="RSUP Dr. Hasan Sadikin, Prodia..."
+                id="upload-facility-input"
+              />
             </div>
             <div>
               <label className="label-text">Tanggal Dokumen *</label>
@@ -210,30 +238,64 @@ export default function Documents() {
         </div>
       )}
 
-      {/* Filter */}
-      <div className="flex gap-2 flex-wrap">
-        {(['all', ...CATEGORIES] as const).map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilterCategory(cat)}
-            id={`filter-${cat.replace(/\s+/g, '-').toLowerCase()}`}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-              filterCategory === cat
-                ? 'bg-accent-500/20 text-accent-400 border border-accent-500/30'
-                : 'bg-bg-elevated text-slate-400 border border-bg-border hover:border-accent-500/30'
-            )}
-          >
-            {cat === 'all' ? 'Semua' : cat}
-          </button>
-        ))}
+      {/* Filter Bar */}
+      <div className="space-y-3">
+        <div className="flex gap-2 flex-wrap items-center">
+          <span className="text-xs text-slate-500 font-medium">Kategori:</span>
+          {(['all', ...CATEGORIES] as const).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFilterCategory(cat)}
+              id={`filter-${cat.replace(/\s+/g, '-').toLowerCase()}`}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                filterCategory === cat
+                  ? 'bg-accent-500/20 text-accent-400 border border-accent-500/30'
+                  : 'bg-bg-elevated text-slate-400 border border-bg-border hover:border-accent-500/30'
+              )}
+            >
+              {cat === 'all' ? 'Semua' : cat}
+            </button>
+          ))}
+        </div>
+
+        {availableFacilities.length > 0 && (
+          <div className="flex gap-2 flex-wrap items-center pt-1">
+            <span className="text-xs text-slate-500 font-medium">Fasilitas Medis:</span>
+            <button
+              onClick={() => setFilterFacility('all')}
+              className={cn(
+                'px-3 py-1 rounded-md text-xs font-medium transition-all border',
+                filterFacility === 'all'
+                  ? 'bg-accent-500/20 text-accent-400 border-accent-500/30'
+                  : 'bg-bg-elevated text-slate-400 border-bg-border'
+              )}
+            >
+              Semua RS / Lab
+            </button>
+            {availableFacilities.map((fac) => (
+              <button
+                key={fac}
+                onClick={() => setFilterFacility(fac)}
+                className={cn(
+                  'px-3 py-1 rounded-md text-xs font-medium transition-all border',
+                  filterFacility === fac
+                    ? 'bg-accent-500/20 text-accent-400 border-accent-500/30'
+                    : 'bg-bg-elevated text-slate-400 border-bg-border'
+                )}
+              >
+                🏥 {fac}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Documents Grid */}
       {documents.length === 0 ? (
         <div className="text-center py-16">
           <FileText size={48} className="text-slate-700 mx-auto mb-4" />
-          <p className="text-slate-500">Belum ada dokumen dalam kategori ini</p>
+          <p className="text-slate-500">Belum ada dokumen dalam kriteria ini</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -254,8 +316,13 @@ export default function Documents() {
                 <div className="text-sm font-medium text-white truncate" title={doc.filename}>{doc.filename}</div>
                 <div className="text-xs text-slate-500 mt-0.5">{formatDateShort(doc.documentDate)}</div>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className="badge badge-teal text-xs">{doc.category}</span>
+                {doc.facility && (
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-accent-500/10 text-accent-400 border border-accent-500/20 truncate max-w-[140px]" title={doc.facility}>
+                    🏥 {doc.facility}
+                  </span>
+                )}
                 <StatusBadge status={doc.status} />
               </div>
               {doc.notes && <p className="text-xs text-slate-500 truncate">{doc.notes}</p>}

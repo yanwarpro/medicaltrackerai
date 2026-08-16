@@ -51,6 +51,7 @@ export interface MedDocument {
   patientId: string;
   filename: string;
   category: DocumentCategory;
+  facility?: string; // Rumah Sakit / Klinik / Laboratorium
   documentDate: string;
   uploadDate: string;
   fileDataUrl?: string; // base64 stored in localStorage
@@ -71,6 +72,7 @@ export interface LabResult {
   id: string;
   patientId: string;
   documentId?: string;
+  facility?: string;
   testDate: string;
   testName: string;
   normalizedName: string;

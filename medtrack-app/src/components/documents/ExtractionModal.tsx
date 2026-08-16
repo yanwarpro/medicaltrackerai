@@ -23,6 +23,7 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [editUnit, setEditUnit] = useState('');
+  const [facilityInput, setFacilityInput] = useState(doc.facility || '');
 
   useEffect(() => {
     if (doc.ocrText) {
@@ -34,6 +35,7 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
             action: i.action === 'rejected' ? 'rejected' : 'confirmed',
           }));
           setResult(parsed);
+          setFacilityInput(parsed.identity?.facility || doc.facility || '');
           setStep('review');
           return;
         }
@@ -58,6 +60,7 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
       }
       const extracted = await extractDocumentWithGemini(apiKey, imageData, mimeType, doc.id);
       setResult(extracted);
+      setFacilityInput(extracted.identity?.facility || doc.facility || '');
       documentStorage.update(doc.id, { status: 'extracted', ocrText: JSON.stringify(extracted) });
       setStep('review');
     } catch (e: any) {
@@ -111,12 +114,14 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
     const toSave = result.labItems.filter((i) => i.action !== 'rejected' && i.value !== null);
 
     const docDate = result.identity.documentDate || doc.documentDate;
+    const facilityName = facilityInput || result.identity.facility || doc.facility;
 
     if (toSave.length > 0) {
       await labResultStorage.saveBatch(
         toSave.map((item) => ({
           patientId,
           documentId: doc.id,
+          facility: facilityName,
           testDate: docDate,
           testName: item.testName,
           normalizedName: normalizeLabName(item.normalizedName || item.testName),
@@ -141,7 +146,7 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
           dosage: med.dosage,
           frequency: med.frequency,
           startDate: docDate,
-          notes: med.notes || `Diekstrak dari ${doc.filename}`,
+          notes: med.notes || `Diekstrak dari ${doc.filename}${facilityName ? ` (${facilityName})` : ''}`,
           isActive: true,
         });
       });
@@ -154,6 +159,7 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
 
     documentStorage.update(doc.id, {
       status: 'confirmed',
+      facility: facilityName,
       extractionConfidence: avgConfidence,
     });
     setStep('done');
@@ -253,25 +259,31 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
           {step === 'review' && result && (
             <div className="space-y-5">
               {/* Identity */}
-              {(result.identity.patientName || result.identity.facility || result.identity.doctor) && (
-                <div className="bg-bg-primary rounded-lg p-3 space-y-2">
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Informasi Dokumen</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {result.identity.patientName && (
-                      <div><span className="text-slate-500">Nama:</span> <span className="text-slate-300">{result.identity.patientName}</span></div>
-                    )}
-                    {result.identity.documentDate && (
-                      <div><span className="text-slate-500">Tanggal:</span> <span className="text-slate-300">{result.identity.documentDate}</span></div>
-                    )}
-                    {result.identity.facility && (
-                      <div><span className="text-slate-500">Fasilitas:</span> <span className="text-slate-300">{result.identity.facility}</span></div>
-                    )}
-                    {result.identity.doctor && (
-                      <div><span className="text-slate-500">Dokter:</span> <span className="text-slate-300">{result.identity.doctor}</span></div>
-                    )}
+              <div className="bg-bg-primary rounded-lg p-3 space-y-2 border border-bg-border">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Informasi Dokumen</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {result.identity.patientName && (
+                    <div><span className="text-slate-500">Nama:</span> <span className="text-slate-300">{result.identity.patientName}</span></div>
+                  )}
+                  {result.identity.documentDate && (
+                    <div><span className="text-slate-500">Tanggal:</span> <span className="text-slate-300">{result.identity.documentDate}</span></div>
+                  )}
+                  {result.identity.doctor && (
+                    <div><span className="text-slate-500">Dokter:</span> <span className="text-slate-300">{result.identity.doctor}</span></div>
+                  )}
+                  <div className="col-span-2 mt-1">
+                    <label className="text-slate-500 block mb-1 font-medium">Fasilitas / Rumah Sakit / Klinik:</label>
+                    <input
+                      type="text"
+                      className="input-field py-1 text-xs text-white"
+                      value={facilityInput}
+                      onChange={(e) => setFacilityInput(e.target.value)}
+                      placeholder="contoh: RSUP Dr. Hasan Sadikin, Prodia..."
+                      id="facility-input-modal"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Summary Bar */}
               <div className="flex items-center gap-3">
