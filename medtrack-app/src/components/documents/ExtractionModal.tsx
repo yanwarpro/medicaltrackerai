@@ -40,6 +40,7 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
       if (!apiKey || !apiKey.trim()) {
         throw new Error('Google Gemini API Key belum dikonfigurasi. Silakan isi API Key gratis Anda di menu Pengaturan (/settings) untuk menjalankan ekstraksi otomatis AI.');
       }
+      const extracted = await extractDocumentWithGemini(apiKey, imageData, mimeType, doc.id);
       setResult(extracted);
       documentStorage.update(doc.id, { status: 'extracted', ocrText: JSON.stringify(extracted) });
       setStep('review');
