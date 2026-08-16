@@ -138,3 +138,15 @@ export function normalizeLabName(rawName: string): string {
   const lower = rawName.toLowerCase().trim();
   return LAB_NORMALIZATION_MAP[lower] || lower;
 }
+
+export const PARAM_OPTIONS = [
+  { label: 'Hemoglobin (Hb)', normalized: 'hemoglobin', unit: 'g/dL', refLow: 12, refHigh: 16 },
+  { label: 'Trombosit', normalized: 'platelets', unit: '10³/µL', refLow: 150, refHigh: 400 },
+  { label: 'Leukosit (WBC)', normalized: 'wbc', unit: '10³/µL', refLow: 4.5, refHigh: 11 },
+  { label: 'MCV', normalized: 'mcv', unit: 'fL', refLow: 80, refHigh: 100 },
+  { label: 'Ferritin', normalized: 'ferritin', unit: 'ng/mL', refLow: 12, refHigh: 150 },
+  { label: 'Creatinine', normalized: 'creatinine', unit: 'mg/dL', refLow: 0.5, refHigh: 1.1 },
+  { label: 'eGFR', normalized: 'egfr', unit: 'mL/min/1.73m²', refLow: 90, refHigh: 120 },
+  { label: 'LDH', normalized: 'ldh', unit: 'U/L', refLow: 140, refHigh: 280 },
+  { label: 'TSH', normalized: 'tsh', unit: 'µIU/mL', refLow: 0.4, refHigh: 4.0 },
+];
