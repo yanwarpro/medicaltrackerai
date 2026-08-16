@@ -31,16 +31,37 @@ export default function LabTrends() {
     [activePatient]
   );
 
-  // Available params present in data
+  // Available params present in data (including dynamic params from labResults)
   const availableParams = useMemo(() => {
     const counts: Record<string, number> = {};
+    const sampleMap: Record<string, typeof labResults[0]> = {};
     labResults.forEach((r) => {
-      counts[r.normalizedName] = (counts[r.normalizedName] || 0) + 1;
+      const norm = r.normalizedName || r.testName.toLowerCase();
+      counts[norm] = (counts[norm] || 0) + 1;
+      if (!sampleMap[norm]) sampleMap[norm] = r;
     });
-    return PARAM_OPTIONS.map((opt) => ({
+
+    const list = PARAM_OPTIONS.map((opt) => ({
       ...opt,
       count: counts[opt.normalized] || 0,
-    })).sort((a, b) => b.count - a.count);
+    }));
+
+    const existingNorms = new Set(PARAM_OPTIONS.map((o) => o.normalized));
+    Object.keys(counts).forEach((normKey) => {
+      if (!existingNorms.has(normKey)) {
+        const sample = sampleMap[normKey];
+        list.push({
+          label: sample ? sample.testName : normKey,
+          normalized: normKey,
+          unit: sample?.unit || '',
+          refLow: sample?.referenceLow || 0,
+          refHigh: sample?.referenceHigh || 100,
+          count: counts[normKey],
+        });
+      }
+    });
+
+    return list.sort((a, b) => b.count - a.count);
   }, [labResults]);
 
   // Filtered by date range
