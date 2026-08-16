@@ -80,12 +80,23 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
     });
   }
 
+  function updateMedItem(id: string, updates: Partial<ExtractedMedItem>) {
+    setResult((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        medicationItems: (prev.medicationItems || []).map((item) => item.id === id ? { ...item, ...updates } : item),
+      };
+    });
+  }
+
   function setAllAction(action: 'confirmed' | 'rejected') {
     setResult((prev) => {
       if (!prev) return null;
       return {
         ...prev,
         labItems: prev.labItems.map((item) => ({ ...item, action })),
+        medicationItems: (prev.medicationItems || []).map((item) => ({ ...item, action })),
       };
     });
   }
@@ -165,8 +176,13 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
     setStep('done');
   }
 
-  const confirmedCount = result?.labItems.filter((i) => i.action === 'confirmed' || i.action === 'edited').length || 0;
-  const totalCount = result?.labItems.length || 0;
+  const labConfirmed = result?.labItems.filter((i) => i.action === 'confirmed' || i.action === 'edited').length || 0;
+  const medConfirmed = result?.medicationItems?.filter((i) => i.action === 'confirmed' || i.action === 'edited').length || 0;
+  const confirmedCount = labConfirmed + medConfirmed;
+
+  const totalLabCount = result?.labItems.length || 0;
+  const totalMedCount = result?.medicationItems?.length || 0;
+  const totalCount = totalLabCount + totalMedCount;
 
   function getConfidenceColor(conf: number) {
     if (conf >= 0.9) return 'text-emerald-400';
@@ -308,133 +324,212 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
                 </div>
               </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-bg-border">
-                      <th className="table-header pl-0">Parameter</th>
-                      <th className="table-header text-right">Nilai</th>
-                      <th className="table-header">Satuan</th>
-                      <th className="table-header text-right">Conf.</th>
-                      <th className="table-header text-center">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.labItems.map((item) => (
-                      <tr
-                        key={item.id}
-                        className={cn(
-                          'table-row',
-                          item.action === 'confirmed' && 'bg-emerald-500/5',
-                          item.action === 'rejected' && 'bg-red-500/5 opacity-50',
-                          item.action === 'edited' && 'bg-accent-500/5',
-                        )}
-                        id={`lab-row-${item.id}`}
-                      >
-                        <td className="table-cell pl-0">
-                          <div className="font-medium text-white">{item.testName}</div>
-                          <div className="text-xs text-slate-600">{item.normalizedName}</div>
-                        </td>
-                        <td className="table-cell text-right font-mono">
-                          {editingId === item.id ? (
-                            <input
-                              type="number"
-                              className="input-field w-20 text-right text-xs py-1"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              id={`edit-value-${item.id}`}
-                              autoFocus
-                            />
-                          ) : (
-                            <span className={cn(
-                              item.abnormalFlag === 'H' || item.abnormalFlag === 'HH' ? 'text-amber-400 font-bold' :
-                              item.abnormalFlag === 'L' || item.abnormalFlag === 'LL' ? 'text-blue-400 font-bold' :
-                              'text-white'
-                            )}>
-                              {item.value !== null ? formatNumber(item.value, 2) : '—'}
-                              {item.abnormalFlag && item.abnormalFlag !== 'N' && (
-                                <span className="ml-1 text-xs">({item.abnormalFlag})</span>
+              {/* Lab Items Table */}
+              {result.labItems.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">🔬 Hasil Laboratorium ({result.labItems.length})</p>
+                  <div className="overflow-x-auto border border-bg-border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-bg-border bg-bg-secondary/40">
+                          <th className="table-header pl-3">Parameter</th>
+                          <th className="table-header text-right">Nilai</th>
+                          <th className="table-header">Satuan</th>
+                          <th className="table-header text-right">Conf.</th>
+                          <th className="table-header text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.labItems.map((item) => (
+                          <tr
+                            key={item.id}
+                            className={cn(
+                              'table-row border-b border-bg-border/40',
+                              item.action === 'confirmed' && 'bg-emerald-500/5',
+                              item.action === 'rejected' && 'bg-red-500/5 opacity-50',
+                              item.action === 'edited' && 'bg-accent-500/5',
+                            )}
+                            id={`lab-row-${item.id}`}
+                          >
+                            <td className="table-cell pl-3">
+                              <div className="font-medium text-white">{item.testName}</div>
+                              <div className="text-xs text-slate-600">{item.normalizedName}</div>
+                            </td>
+                            <td className="table-cell text-right font-mono">
+                              {editingId === item.id ? (
+                                <input
+                                  type="number"
+                                  className="input-field w-20 text-right text-xs py-1"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  id={`edit-value-${item.id}`}
+                                  autoFocus
+                                />
+                              ) : (
+                                <span className={cn(
+                                  item.abnormalFlag === 'H' || item.abnormalFlag === 'HH' ? 'text-amber-400 font-bold' :
+                                  item.abnormalFlag === 'L' || item.abnormalFlag === 'LL' ? 'text-blue-400 font-bold' :
+                                  'text-white'
+                                )}>
+                                  {item.value !== null ? formatNumber(item.value, 2) : '—'}
+                                  {item.abnormalFlag && item.abnormalFlag !== 'N' && (
+                                    <span className="ml-1 text-xs">({item.abnormalFlag})</span>
+                                  )}
+                                </span>
                               )}
-                            </span>
-                          )}
-                        </td>
-                        <td className="table-cell">
-                          {editingId === item.id ? (
-                            <input
-                              className="input-field w-16 text-xs py-1"
-                              value={editUnit}
-                              onChange={(e) => setEditUnit(e.target.value)}
-                              id={`edit-unit-${item.id}`}
-                            />
-                          ) : (
-                            <span className="text-slate-400 text-xs">{item.unit || '—'}</span>
-                          )}
-                        </td>
-                        <td className="table-cell text-right">
-                          <span className={`text-xs ${getConfidenceColor(item.confidence)}`}>
-                            {Math.round(item.confidence * 100)}%
-                          </span>
-                        </td>
-                        <td className="table-cell">
-                          {editingId === item.id ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => saveEdit(item.id)} id={`save-edit-${item.id}`} className="p-1 rounded text-emerald-400 hover:bg-emerald-500/10">
-                                <Save size={13} />
-                              </button>
-                              <button onClick={() => setEditingId(null)} id={`cancel-edit-${item.id}`} className="p-1 rounded text-slate-400 hover:bg-bg-elevated">
-                                <X size={13} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => updateItem(item.id, { action: item.action === 'confirmed' ? 'pending' : 'confirmed' })}
-                                id={`confirm-${item.id}`}
-                                className={cn(
-                                  'p-1.5 rounded-lg transition-all',
-                                  item.action === 'confirmed'
-                                    ? 'text-emerald-400 bg-emerald-500/20 ring-1 ring-emerald-500/40 shadow-sm'
-                                    : 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10'
-                                )}
-                                title="Konfirmasi"
-                              >
-                                <CheckCircle size={15} className={item.action === 'confirmed' ? 'fill-emerald-500/30' : ''} />
-                              </button>
-                              <button
-                                onClick={() => startEdit(item)}
-                                id={`edit-${item.id}`}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-accent-400 hover:bg-accent-500/10 transition-all"
-                                title="Edit"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => updateItem(item.id, { action: item.action === 'rejected' ? 'pending' : 'rejected' })}
-                                id={`reject-${item.id}`}
-                                className={cn(
-                                  'p-1.5 rounded-lg transition-all',
-                                  item.action === 'rejected'
-                                    ? 'text-red-400 bg-red-500/20 ring-1 ring-red-500/40 shadow-sm'
-                                    : 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'
-                                )}
-                                title="Tolak"
-                              >
-                                <XCircle size={15} className={item.action === 'rejected' ? 'fill-red-500/30' : ''} />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            </td>
+                            <td className="table-cell">
+                              {editingId === item.id ? (
+                                <input
+                                  className="input-field w-16 text-xs py-1"
+                                  value={editUnit}
+                                  onChange={(e) => setEditUnit(e.target.value)}
+                                  id={`edit-unit-${item.id}`}
+                                />
+                              ) : (
+                                <span className="text-slate-400 text-xs">{item.unit || '—'}</span>
+                              )}
+                            </td>
+                            <td className="table-cell text-right">
+                              <span className={`text-xs ${getConfidenceColor(item.confidence)}`}>
+                                {Math.round(item.confidence * 100)}%
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              {editingId === item.id ? (
+                                <div className="flex items-center justify-center gap-1">
+                                  <button onClick={() => saveEdit(item.id)} id={`save-edit-${item.id}`} className="p-1 rounded text-emerald-400 hover:bg-emerald-500/10">
+                                    <Save size={13} />
+                                  </button>
+                                  <button onClick={() => setEditingId(null)} id={`cancel-edit-${item.id}`} className="p-1 rounded text-slate-400 hover:bg-bg-elevated">
+                                    <X size={13} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => updateItem(item.id, { action: item.action === 'confirmed' ? 'pending' : 'confirmed' })}
+                                    id={`confirm-${item.id}`}
+                                    className={cn(
+                                      'p-1.5 rounded-lg transition-all',
+                                      item.action === 'confirmed'
+                                        ? 'text-emerald-400 bg-emerald-500/20 ring-1 ring-emerald-500/40 shadow-sm'
+                                        : 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10'
+                                    )}
+                                    title="Konfirmasi"
+                                  >
+                                    <CheckCircle size={15} className={item.action === 'confirmed' ? 'fill-emerald-500/30' : ''} />
+                                  </button>
+                                  <button
+                                    onClick={() => startEdit(item)}
+                                    id={`edit-${item.id}`}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-accent-400 hover:bg-accent-500/10 transition-all"
+                                    title="Edit"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => updateItem(item.id, { action: item.action === 'rejected' ? 'pending' : 'rejected' })}
+                                    id={`reject-${item.id}`}
+                                    className={cn(
+                                      'p-1.5 rounded-lg transition-all',
+                                      item.action === 'rejected'
+                                        ? 'text-red-400 bg-red-500/20 ring-1 ring-red-500/40 shadow-sm'
+                                        : 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'
+                                    )}
+                                    title="Tolak"
+                                  >
+                                    <XCircle size={15} className={item.action === 'rejected' ? 'fill-red-500/30' : ''} />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Medication Table */}
+              {result.medicationItems && result.medicationItems.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">💊 Obat-obatan Terdeteksi ({result.medicationItems.length})</p>
+                  <div className="overflow-x-auto border border-bg-border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-bg-border bg-bg-secondary/40">
+                          <th className="table-header pl-3">Nama Obat</th>
+                          <th className="table-header">Dosis / Aturan Minum</th>
+                          <th className="table-header text-right">Conf.</th>
+                          <th className="table-header text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.medicationItems.map((med) => (
+                          <tr
+                            key={med.id}
+                            className={cn(
+                              'table-row border-b border-bg-border/40',
+                              med.action === 'confirmed' && 'bg-emerald-500/5',
+                              med.action === 'rejected' && 'bg-red-500/5 opacity-50',
+                            )}
+                            id={`med-row-${med.id}`}
+                          >
+                            <td className="table-cell pl-3 font-medium text-white">
+                              {med.medicationName}
+                            </td>
+                            <td className="table-cell text-slate-300 text-xs">
+                              {med.dosage || '—'} {med.frequency ? `· ${med.frequency}` : ''}
+                            </td>
+                            <td className="table-cell text-right text-xs">
+                              <span className={getConfidenceColor(med.confidence)}>
+                                {Math.round(med.confidence * 100)}%
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => updateMedItem(med.id, { action: med.action === 'confirmed' ? 'pending' : 'confirmed' })}
+                                  id={`confirm-med-${med.id}`}
+                                  className={cn(
+                                    'p-1.5 rounded-lg transition-all',
+                                    med.action === 'confirmed'
+                                      ? 'text-emerald-400 bg-emerald-500/20 ring-1 ring-emerald-500/40 shadow-sm'
+                                      : 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10'
+                                  )}
+                                  title="Konfirmasi"
+                                >
+                                  <CheckCircle size={15} className={med.action === 'confirmed' ? 'fill-emerald-500/30' : ''} />
+                                </button>
+                                <button
+                                  onClick={() => updateMedItem(med.id, { action: med.action === 'rejected' ? 'pending' : 'rejected' })}
+                                  id={`reject-med-${med.id}`}
+                                  className={cn(
+                                    'p-1.5 rounded-lg transition-all',
+                                    med.action === 'rejected'
+                                      ? 'text-red-400 bg-red-500/20 ring-1 ring-red-500/40 shadow-sm'
+                                      : 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'
+                                  )}
+                                  title="Tolak"
+                                >
+                                  <XCircle size={15} className={med.action === 'rejected' ? 'fill-red-500/30' : ''} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {totalCount === 0 && (
                 <div className="text-center py-8 text-slate-500 text-sm">
                   <FlaskConical size={32} className="mx-auto mb-2 text-slate-600" />
-                  Tidak ada parameter lab yang ditemukan dalam dokumen ini
+                  Tidak ada parameter lab atau daftar obat yang terdeteksi dari dokumen ini
                 </div>
               )}
             </div>
