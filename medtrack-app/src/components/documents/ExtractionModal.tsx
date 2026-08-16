@@ -165,7 +165,13 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
                 <p className="text-slate-400 text-sm mt-1 max-w-xs">{errorMsg}</p>
               </div>
               <div className="flex gap-3">
-                <button onClick={runExtraction} id="retry-extraction-btn" className="btn-primary">Coba Lagi</button>
+                {errorMsg.includes('Pengaturan') ? (
+                  <a href="/settings" className="btn-primary" id="go-to-settings-btn">
+                    Buka Pengaturan
+                  </a>
+                ) : (
+                  <button onClick={runExtraction} id="retry-extraction-btn" className="btn-primary">Coba Lagi</button>
+                )}
                 <button onClick={onClose} id="close-error-btn" className="btn-secondary">Tutup</button>
               </div>
             </div>

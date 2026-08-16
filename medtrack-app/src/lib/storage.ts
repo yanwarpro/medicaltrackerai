@@ -65,7 +65,14 @@ export const settingsStorage = {
   get(): AppSettings {
     try {
       const raw = localStorage.getItem(KEYS.SETTINGS);
-      return raw ? { ...defaultSettings, ...JSON.parse(raw) } : defaultSettings;
+      const current = raw ? JSON.parse(raw) : {};
+      return {
+        ...defaultSettings,
+        ...current,
+        geminiApiKey: current.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY || '',
+        supabaseUrl: current.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || defaultSettings.supabaseUrl,
+        supabaseAnonKey: current.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY || defaultSettings.supabaseAnonKey,
+      };
     } catch {
       return defaultSettings;
     }
