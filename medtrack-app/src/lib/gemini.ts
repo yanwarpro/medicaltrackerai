@@ -113,12 +113,26 @@ export async function extractDocumentWithGemini(
   // Strip data URL prefix if present
   const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
 
+  // Normalize MIME type (WhatsApp images often use image/jpg or octet-stream)
+  let normalizedMimeType = mimeType || 'image/jpeg';
+  if (normalizedMimeType.includes('jpg') || normalizedMimeType.includes('jpeg')) {
+    normalizedMimeType = 'image/jpeg';
+  } else if (normalizedMimeType.includes('png')) {
+    normalizedMimeType = 'image/png';
+  } else if (normalizedMimeType.includes('pdf')) {
+    normalizedMimeType = 'application/pdf';
+  } else if (normalizedMimeType === 'application/octet-stream' || !normalizedMimeType) {
+    if (base64Data.startsWith('/9j/')) normalizedMimeType = 'image/jpeg';
+    else if (base64Data.startsWith('iVBORw0KGgo')) normalizedMimeType = 'image/png';
+    else if (base64Data.startsWith('JVBERi0')) normalizedMimeType = 'application/pdf';
+  }
+
   const result = await generateWithFallback(genAI, [
     EXTRACTION_PROMPT,
     {
       inlineData: {
         data: base64Data,
-        mimeType: mimeType as string,
+        mimeType: normalizedMimeType,
       },
     },
   ]);
