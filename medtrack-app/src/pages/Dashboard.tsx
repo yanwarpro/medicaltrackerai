@@ -8,8 +8,9 @@ import {
 import {
   LineChart, Line, ResponsiveContainer, Tooltip, XAxis,
 } from 'recharts';
+import { HeartPulse } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { labResultStorage, documentStorage, hospitalizationStorage, transfusionStorage } from '../lib/storage';
+import { labResultStorage, documentStorage, hospitalizationStorage, transfusionStorage, bloodPressureStorage } from '../lib/storage';
 import { formatDate, formatDateShort, calcAge, calcDelta, formatNumber, cn } from '../lib/utils';
 import { CHECKLIST_ITEMS } from '../lib/checklist';
 
@@ -50,6 +51,13 @@ export default function Dashboard() {
     activePatient ? transfusionStorage.getAll(activePatient.id) : [],
     [activePatient]
   );
+
+  const bloodPressures = useMemo(() =>
+    activePatient ? bloodPressureStorage.getAll(activePatient.id).sort((a, b) => new Date(b.measuredAt).getTime() - new Date(a.measuredAt).getTime()) : [],
+    [activePatient]
+  );
+
+  const latestBP = bloodPressures[0] || null;
 
   // Get latest values for key parameters
   const latestLabs = useMemo(() => {
@@ -189,7 +197,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="stat-card">
           <FileText size={20} className="text-accent-400" />
           <div className="stat-value">{documents.length}</div>
@@ -200,6 +208,13 @@ export default function Dashboard() {
           <div className="stat-value">{labResults.length}</div>
           <div className="stat-label">Hasil Lab</div>
         </div>
+        <Link to="/blood-pressure" className="stat-card hover:border-rose-500/40 transition-colors" id="stat-bp-card">
+          <HeartPulse size={20} className="text-rose-400" />
+          <div className="stat-value font-mono text-lg">
+            {latestBP ? `${latestBP.systolic}/${latestBP.diastolic}` : '—'}
+          </div>
+          <div className="stat-label">Tensi Terakhir (mmHg)</div>
+        </Link>
         <div className="stat-card">
           <Hospital size={20} className="text-amber-400" />
           <div className="stat-value">{hospitalizations.length}</div>

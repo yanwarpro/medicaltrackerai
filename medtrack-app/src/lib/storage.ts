@@ -8,6 +8,8 @@ import type {
   PatientChecklist,
   AIAnalysis,
   AppSettings,
+  BloodPressureRecord,
+  BloodPressureCategory,
 } from './types';
 import { getSupabaseClient } from './supabase';
 import { isMedicationName } from './utils';
@@ -24,6 +26,7 @@ const KEYS = {
   MEDICATIONS: 'medtrack_medications',
   PATIENT_CHECKLIST: 'medtrack_patient_checklist',
   AI_ANALYSES: 'medtrack_ai_analyses',
+  BLOOD_PRESSURE: 'medtrack_blood_pressure',
   SETTINGS: 'medtrack_settings',
 } as const;
 
@@ -188,6 +191,7 @@ export const patientStorage = {
     saveAll(KEYS.HOSPITALIZATIONS, getAll<Hospitalization>(KEYS.HOSPITALIZATIONS).filter((h) => h.patientId !== id));
     saveAll(KEYS.TRANSFUSIONS, getAll<Transfusion>(KEYS.TRANSFUSIONS).filter((t) => t.patientId !== id));
     saveAll(KEYS.MEDICATIONS, getAll<Medication>(KEYS.MEDICATIONS).filter((m) => m.patientId !== id));
+    saveAll(KEYS.BLOOD_PRESSURE, getAll<BloodPressureRecord>(KEYS.BLOOD_PRESSURE).filter((b) => b.patientId !== id));
 
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -812,3 +816,112 @@ export const aiAnalysisStorage = {
     return newAnalysis;
   },
 };
+
+// ============================================================
+// Blood Pressure (Tensi)
+// ============================================================
+export function calcBPCategory(systolic: number, diastolic: number): BloodPressureCategory {
+  if (systolic >= 180 || diastolic >= 120) return 'Hypertensive Crisis';
+  if (systolic >= 140 || diastolic >= 90) return 'Hypertension Stage 2';
+  if (systolic >= 130 || diastolic >= 80) return 'Hypertension Stage 1';
+  if (systolic >= 120 && diastolic < 80) return 'Elevated';
+  return 'Normal';
+}
+
+export const bloodPressureStorage = {
+  getAll(patientId?: string): BloodPressureRecord[] {
+    const all = getAll<BloodPressureRecord>(KEYS.BLOOD_PRESSURE);
+
+    const supabase = getSupabaseClient();
+    if (supabase && patientId) {
+      supabase.from('blood_pressure_records').select('*').eq('patient_id', patientId).then(({ data, error }) => {
+        if (!error && data) {
+          const mapped: BloodPressureRecord[] = data.map((b) => ({
+            id: b.id,
+            patientId: b.patient_id,
+            systolic: Number(b.systolic),
+            diastolic: Number(b.diastolic),
+            pulse: b.pulse !== null ? Number(b.pulse) : undefined,
+            measuredAt: b.measured_at || b.created_at,
+            category: (b.category as BloodPressureCategory) || calcBPCategory(Number(b.systolic), Number(b.diastolic)),
+            notes: b.notes || '',
+            createdAt: b.created_at,
+          }));
+          const localForPatient = all.filter((b) => b.patientId === patientId);
+          const merged = [
+            ...mapped,
+            ...localForPatient.filter((localItem) => !mapped.some((s) => s.id === localItem.id))
+          ];
+          const existingOtherPatients = all.filter((b) => b.patientId !== patientId);
+          saveAll(KEYS.BLOOD_PRESSURE, [...existingOtherPatients, ...merged]);
+        }
+      });
+    }
+
+    return patientId ? all.filter((b) => b.patientId === patientId) : all;
+  },
+  save(rec: Omit<BloodPressureRecord, 'id' | 'createdAt' | 'category'> & { category?: BloodPressureCategory }): BloodPressureRecord {
+    const category = rec.category || calcBPCategory(rec.systolic, rec.diastolic);
+    const now = new Date().toISOString();
+    const newRec: BloodPressureRecord = {
+      ...rec,
+      category,
+      id: generateId(),
+      createdAt: now,
+    };
+    const all = bloodPressureStorage.getAll();
+    all.push(newRec);
+    saveAll(KEYS.BLOOD_PRESSURE, all);
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.from('blood_pressure_records').insert({
+        id: newRec.id,
+        patient_id: newRec.patientId,
+        systolic: newRec.systolic,
+        diastolic: newRec.diastolic,
+        pulse: newRec.pulse || null,
+        measured_at: newRec.measuredAt,
+        category: newRec.category,
+        notes: newRec.notes || null,
+      }).then();
+    }
+
+    return newRec;
+  },
+  update(id: string, updates: Partial<BloodPressureRecord>): BloodPressureRecord | null {
+    const all = bloodPressureStorage.getAll();
+    const idx = all.findIndex((b) => b.id === id);
+    if (idx === -1) return null;
+    const existing = all[idx];
+    const sys = updates.systolic ?? existing.systolic;
+    const dia = updates.diastolic ?? existing.diastolic;
+    const category = updates.category || calcBPCategory(sys, dia);
+
+    all[idx] = { ...existing, ...updates, systolic: sys, diastolic: dia, category };
+    saveAll(KEYS.BLOOD_PRESSURE, all);
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const u = all[idx];
+      supabase.from('blood_pressure_records').update({
+        systolic: u.systolic,
+        diastolic: u.diastolic,
+        pulse: u.pulse || null,
+        measured_at: u.measuredAt,
+        category: u.category,
+        notes: u.notes || null,
+      }).eq('id', id).then();
+    }
+
+    return all[idx];
+  },
+  delete(id: string): void {
+    saveAll(KEYS.BLOOD_PRESSURE, bloodPressureStorage.getAll().filter((b) => b.id !== id));
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.from('blood_pressure_records').delete().eq('id', id).then();
+    }
+  },
+};
+

@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  HeartPulse,
   Users,
   ChevronDown,
   LogIn,
@@ -28,6 +29,7 @@ import { cn, calcAge } from '../../lib/utils';
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/timeline', icon: Activity, label: 'Timeline' },
+  { to: '/blood-pressure', icon: HeartPulse, label: 'Riwayat Tensi' },
   { to: '/documents', icon: FileText, label: 'Dokumen' },
   { to: '/lab-results', icon: FlaskConical, label: 'Hasil Lab' },
   { to: '/trends', icon: TrendingUp, label: 'Tren Lab' },

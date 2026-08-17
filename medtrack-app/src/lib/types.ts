@@ -241,6 +241,28 @@ export interface AppSettings {
 }
 
 // ============================================================
+// Blood Pressure (Tensi)
+// ============================================================
+export type BloodPressureCategory =
+  | 'Normal'
+  | 'Elevated'
+  | 'Hypertension Stage 1'
+  | 'Hypertension Stage 2'
+  | 'Hypertensive Crisis';
+
+export interface BloodPressureRecord {
+  id: string;
+  patientId: string;
+  systolic: number; // mmHg
+  diastolic: number; // mmHg
+  pulse?: number; // bpm
+  measuredAt: string; // ISO date string
+  category: BloodPressureCategory;
+  notes?: string;
+  createdAt: string;
+}
+
+// ============================================================
 // Timeline Event
 // ============================================================
 export type TimelineEventType =
@@ -249,6 +271,7 @@ export type TimelineEventType =
   | 'consultation'
   | 'medication'
   | 'transfusion'
+  | 'blood_pressure'
   | 'ultrasound'
   | 'ct_scan'
   | 'xray'

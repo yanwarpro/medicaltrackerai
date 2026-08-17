@@ -3,7 +3,7 @@ import {
   Loader2, X, CheckCircle, AlertTriangle, Edit2, XCircle,
   Sparkles, FlaskConical, Save
 } from 'lucide-react';
-import type { MedDocument, ExtractedLabItem, ExtractionResult } from '../../lib/types';
+import type { MedDocument, ExtractedLabItem, ExtractedMedItem, ExtractionResult } from '../../lib/types';
 import { extractDocumentWithGemini } from '../../lib/gemini';
 import { documentStorage, labResultStorage, medicationStorage } from '../../lib/storage';
 import { formatNumber, cn } from '../../lib/utils';

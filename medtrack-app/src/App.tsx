@@ -11,6 +11,7 @@ import Checklist from './pages/Checklist';
 import HospitalizationTracker from './pages/Hospitalization';
 import TransfusionTracker from './pages/Transfusion';
 import Medications from './pages/Medications';
+import BloodPressure from './pages/BloodPressure';
 import AISummary from './pages/AISummary';
 import DoctorReport from './pages/DoctorReport';
 import GlobalSearch from './pages/Search';
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/lab-results" element={<LabResults />} />
             <Route path="/trends" element={<LabTrends />} />
             <Route path="/timeline" element={<Timeline />} />
+            <Route path="/blood-pressure" element={<BloodPressure />} />
             <Route path="/checklist" element={<Checklist />} />
             <Route path="/hospitalization" element={<HospitalizationTracker />} />
             <Route path="/transfusion" element={<TransfusionTracker />} />

@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, FlaskConical, Hospital, Droplets, FileText, Pill, Filter } from 'lucide-react';
+import { Activity, FlaskConical, Hospital, Droplets, FileText, Pill, HeartPulse, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   labResultStorage, documentStorage, hospitalizationStorage,
-  transfusionStorage, medicationStorage
+  transfusionStorage, medicationStorage, bloodPressureStorage
 } from '../lib/storage';
 import { formatDate, formatDateShort, formatNumber, cn } from '../lib/utils';
 import type { TimelineEventType } from '../lib/types';
@@ -12,6 +12,7 @@ const TYPE_COLORS: Record<string, string> = {
   lab: 'bg-accent-500',
   hospitalization: 'bg-amber-500',
   transfusion: 'bg-red-500',
+  blood_pressure: 'bg-rose-500',
   document: 'bg-slate-500',
   medication: 'bg-emerald-500',
   consultation: 'bg-purple-500',
@@ -20,6 +21,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 const TYPE_LABELS: Record<string, string> = {
   lab: 'Hasil Lab',
+  blood_pressure: 'Tensi',
   hospitalization: 'Rawat Inap',
   transfusion: 'Transfusi',
   document: 'Dokumen',
@@ -29,6 +31,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 const TYPE_ICONS: Record<string, React.FC<any>> = {
   lab: FlaskConical,
+  blood_pressure: HeartPulse,
   hospitalization: Hospital,
   transfusion: Droplets,
   document: FileText,
@@ -103,6 +106,17 @@ export default function Timeline() {
         type: 'medication',
         title: `Mulai Obat: ${m.medicationName}`,
         description: `${m.dosage} · ${m.frequency}`,
+      });
+    });
+
+    // Blood Pressure records
+    bloodPressureStorage.getAll(activePatient.id).forEach((b) => {
+      all.push({
+        id: `bp-${b.id}`,
+        date: b.measuredAt.slice(0, 10),
+        type: 'blood_pressure',
+        title: `Tensi: ${b.systolic}/${b.diastolic} mmHg`,
+        description: `Kategori: ${b.category}${b.pulse ? ` · Nadi: ${b.pulse} bpm` : ''}${b.notes ? ` · ${b.notes}` : ''}`,
       });
     });
 

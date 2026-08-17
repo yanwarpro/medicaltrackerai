@@ -3,7 +3,7 @@ import { FileBarChart, Printer, Download } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   labResultStorage, hospitalizationStorage, transfusionStorage,
-  medicationStorage, documentStorage
+  medicationStorage, documentStorage, bloodPressureStorage
 } from '../lib/storage';
 import { CHECKLIST_ITEMS } from '../lib/checklist';
 import { formatDate, formatDateShort, formatNumber, calcAge, calcDelta, cn } from '../lib/utils';
@@ -40,6 +40,11 @@ export default function DoctorReport() {
 
   const medications = useMemo(() =>
     activePatient ? medicationStorage.getAll(activePatient.id).filter((m) => m.isActive) : [],
+    [activePatient]
+  );
+
+  const bloodPressures = useMemo(() =>
+    activePatient ? bloodPressureStorage.getAll(activePatient.id).sort((a, b) => new Date(b.measuredAt).getTime() - new Date(a.measuredAt).getTime()) : [],
     [activePatient]
   );
 
@@ -210,6 +215,35 @@ export default function DoctorReport() {
             </tbody>
           </table>
         </section>
+
+        {/* Blood Pressure Summary */}
+        {bloodPressures.length > 0 && (
+          <section>
+            <h3 className="text-sm font-bold text-accent-400 print:text-blue-700 uppercase tracking-wider mb-3">Pemeriksaan Tekanan Darah (Tensi)</h3>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-bg-border bg-bg-secondary/40 print:border-gray-300">
+                  <th className="table-header">WAKTU PENGUKURAN</th>
+                  <th className="table-header">TEKANAN DARAH</th>
+                  <th className="table-header">NADI</th>
+                  <th className="table-header">KATEGORI</th>
+                  <th className="table-header">CATATAN</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bloodPressures.slice(0, 5).map((bp) => (
+                  <tr key={bp.id} className="border-b border-bg-border/50 print:border-gray-200">
+                    <td className="py-2 text-slate-300 print:text-gray-700">{formatDate(bp.measuredAt)}</td>
+                    <td className="py-2 font-mono font-bold text-white print:text-gray-900">{bp.systolic} / {bp.diastolic} mmHg</td>
+                    <td className="py-2 text-slate-300 print:text-gray-700">{bp.pulse ? `${bp.pulse} bpm` : '—'}</td>
+                    <td className="py-2 text-slate-300 print:text-gray-700">{bp.category}</td>
+                    <td className="py-2 text-slate-400 print:text-gray-600">{bp.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
 
         {/* Hospitalization History */}
         {hospitalizations.length > 0 && (
