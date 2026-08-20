@@ -15,7 +15,7 @@ interface AppContextType {
   session: Session | null;
   loadingAuth: boolean;
   signIn: (email: string, pass: string) => Promise<{ error: any }>;
-  signUp: (email: string, pass: string, fullName: string) => Promise<{ error: any }>;
+  signUp: (email: string, pass: string, fullName: string, geminiApiKey?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -29,19 +29,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Initialize Supabase Auth state listener
+  // Initialize Supabase Auth state listener and sync user settings
   useEffect(() => {
     const supabase = getSupabaseClient();
     if (supabase) {
+      const syncUserApiKey = (currentUser: User | null) => {
+        if (currentUser?.user_metadata?.gemini_api_key) {
+          const cloudKey = currentUser.user_metadata.gemini_api_key;
+          const currentSettings = settingsStorage.get();
+          if (currentSettings.geminiApiKey !== cloudKey) {
+            settingsStorage.save({ geminiApiKey: cloudKey });
+            setSettings(settingsStorage.get());
+          }
+        }
+      };
+
       supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
         setUser(session?.user ?? null);
+        syncUserApiKey(session?.user ?? null);
         setLoadingAuth(false);
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        syncUserApiKey(session?.user ?? null);
         setLoadingAuth(false);
       });
 
@@ -79,7 +92,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateSettings = useCallback((updates: Partial<AppSettings>) => {
     settingsStorage.save(updates);
-    setSettings(settingsStorage.get());
+    const updated = settingsStorage.get();
+    setSettings(updated);
+
+    // If logged in and geminiApiKey is updated, persist to Supabase user_metadata
+    if (updates.geminiApiKey !== undefined) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.auth.updateUser({
+          data: { gemini_api_key: updates.geminiApiKey.trim() }
+        }).catch((err) => {
+          console.warn('Failed to sync API key to Supabase user metadata:', err);
+        });
+      }
+    }
   }, []);
 
   const setActivePatient = useCallback((id: string) => {
@@ -96,18 +122,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!res.error && res.data.user) {
       setUser(res.data.user);
       setSession(res.data.session);
+      // Sync cloud API key to local storage on login
+      if (res.data.user.user_metadata?.gemini_api_key) {
+        settingsStorage.save({ geminiApiKey: res.data.user.user_metadata.gemini_api_key });
+        setSettings(settingsStorage.get());
+      }
     }
     return { error: res.error };
   };
 
-  const signUp = async (email: string, pass: string, fullName: string) => {
+  const signUp = async (email: string, pass: string, fullName: string, geminiApiKey?: string) => {
     const supabase = getSupabaseClient();
     if (!supabase) return { error: new Error('Supabase belum dikonfigurasi') };
+    
+    const metadata: Record<string, any> = { full_name: fullName };
+    if (geminiApiKey && geminiApiKey.trim()) {
+      metadata.gemini_api_key = geminiApiKey.trim();
+      settingsStorage.save({ geminiApiKey: geminiApiKey.trim() });
+      setSettings(settingsStorage.get());
+    }
+
     const res = await supabase.auth.signUp({
       email,
       password: pass,
       options: {
-        data: { full_name: fullName },
+        data: metadata,
       },
     });
     return { error: res.error };

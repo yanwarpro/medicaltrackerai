@@ -55,9 +55,7 @@ export default function ExtractionModal({ doc, patientId, apiKey, onClose }: Pro
 
       // For PDF, we need to handle differently - use base64 as is
       if (!imageData) throw new Error('Data file tidak ditemukan. Coba upload ulang dokumen.');
-      if (!apiKey || !apiKey.trim()) {
-        throw new Error('Google Gemini API Key belum dikonfigurasi. Silakan isi API Key gratis Anda di menu Pengaturan (/settings) untuk menjalankan ekstraksi otomatis AI.');
-      }
+      
       const extracted = await extractDocumentWithGemini(apiKey, imageData, mimeType, doc.id);
       setResult(extracted);
       setFacilityInput(extracted.identity?.facility || doc.facility || '');

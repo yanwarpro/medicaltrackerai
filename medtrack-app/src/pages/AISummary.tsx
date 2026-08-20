@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Brain, Sparkles, Loader2, Copy, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   labResultStorage, hospitalizationStorage, transfusionStorage, medicationStorage
 } from '../lib/storage';
-import { generateMedicalSummary } from '../lib/gemini';
+import { generateMedicalSummary, checkProxyStatus, type ProxyStatus } from '../lib/gemini';
 import { formatDateShort } from '../lib/utils';
 
 export default function AISummary() {
@@ -13,6 +13,13 @@ export default function AISummary() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null);
+
+  useEffect(() => {
+    checkProxyStatus().then(setProxyStatus);
+  }, []);
+
+  const isAiReady = Boolean(settings.geminiApiKey || proxyStatus?.hasDefaultApiKey);
 
   const labResults = useMemo(() =>
     activePatient ? labResultStorage.getAll(activePatient.id).filter((r) => r.verified) : [],
@@ -20,7 +27,7 @@ export default function AISummary() {
   );
 
   async function generateSummary() {
-    if (!activePatient || !settings.geminiApiKey) return;
+    if (!activePatient || !isAiReady) return;
     setGenerating(true);
     setError('');
     setSummary('');
@@ -92,7 +99,7 @@ export default function AISummary() {
         </div>
         <button
           onClick={generateSummary}
-          disabled={generating || !settings.geminiApiKey}
+          disabled={generating || !isAiReady}
           id="generate-summary-btn"
           className="btn-primary"
         >
@@ -104,11 +111,11 @@ export default function AISummary() {
         </button>
       </div>
 
-      {!settings.geminiApiKey && (
+      {!isAiReady && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
           <AlertTriangle size={15} className="text-amber-400 mt-0.5 flex-shrink-0" />
           <p className="text-sm text-amber-300">
-            Gemini API key belum diatur. Masuk ke <strong>Pengaturan</strong> untuk menambahkan API key.
+            Gemini API key belum diatur di server maupun di browser. Masuk ke <strong>Pengaturan</strong> untuk menambahkan API key.
           </p>
         </div>
       )}

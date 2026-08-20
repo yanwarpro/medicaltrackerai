@@ -24,7 +24,7 @@ import {
   documentStorage,
   settingsStorage,
 } from '../lib/storage';
-import { queryMedicalAssistant } from '../lib/gemini';
+import { queryMedicalAssistant, checkProxyStatus, type ProxyStatus } from '../lib/gemini';
 import { calcAge, formatDate } from '../lib/utils';
 
 interface ChatMessage {
@@ -49,11 +49,18 @@ export default function AIChat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const settings = settingsStorage.get();
   const apiKey = settings.geminiApiKey;
+
+  useEffect(() => {
+    checkProxyStatus().then(setProxyStatus);
+  }, []);
+
+  const isAiReady = Boolean(apiKey || proxyStatus?.hasDefaultApiKey);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,8 +121,8 @@ export default function AIChat() {
       return;
     }
 
-    if (!apiKey) {
-      setError('Gemini API Key belum dimasukkan. Buka menu Pengaturan untuk memasukkan API Key.');
+    if (!isAiReady) {
+      setError('Gemini API Key belum terkonfigurasi di server maupun di pengaturan lokal.');
       return;
     }
 
@@ -279,11 +286,11 @@ export default function AIChat() {
       </div>
 
       {/* Missing API Key Warning */}
-      {!apiKey && (
+      {!isAiReady && (
         <div className="my-3 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-xs text-amber-200 shrink-0">
           <div className="flex items-center gap-2">
             <Key size={16} className="text-amber-400 shrink-0" />
-            <span>Gemini API Key belum terpasang. Masukkan API Key agar asisten dapat menjawab.</span>
+            <span>Gemini API Key belum terpasang di server maupun di browser ini.</span>
           </div>
           <Link
             to="/settings"
@@ -395,7 +402,7 @@ export default function AIChat() {
               <button
                 key={idx}
                 onClick={() => handleSendMessage(prompt)}
-                disabled={loading || !apiKey}
+                disabled={loading || !isAiReady}
                 className="text-xs px-3 py-1.5 rounded-full bg-bg-card hover:bg-bg-elevated border border-bg-border text-slate-300 hover:text-teal-200 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {prompt}
@@ -420,16 +427,16 @@ export default function AIChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={
-              apiKey
+              isAiReady
                 ? `Tanyakan riwayat medis ${activePatient.fullName}...`
                 : 'Silakan isi Gemini API Key di Pengaturan terlebih dahulu'
             }
-            disabled={loading || !apiKey}
+            disabled={loading || !isAiReady}
             className="input-field flex-1 py-3 px-4 pr-12 rounded-xl bg-bg-secondary border-bg-border focus:border-teal-500 text-sm shadow-inner"
           />
           <button
             type="submit"
-            disabled={loading || !input.trim() || !apiKey}
+            disabled={loading || !input.trim() || !isAiReady}
             className="absolute right-2 p-2 rounded-lg bg-gradient-teal text-white disabled:opacity-40 disabled:hover:scale-100 hover:scale-105 active:scale-95 transition-all shadow-glow-teal"
             title="Kirim pesan"
           >

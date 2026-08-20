@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Eye, EyeOff, Save, Key, CheckCircle, AlertTriangle, Trash2, Database, Copy, ExternalLink, Sun, Moon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Eye, EyeOff, Save, Key, CheckCircle, AlertTriangle, Trash2, Database, Copy, ExternalLink, Sun, Moon, ShieldCheck, Server } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { isSupabaseConnected } from '../lib/supabase';
+import { checkProxyStatus, type ProxyStatus } from '../lib/gemini';
 
 const DEFAULT_SUPABASE_URL = 'https://pqmxnlvvqghmhltmlhcb.supabase.co';
 
@@ -125,7 +126,7 @@ create policy "Allow all access on transfusions" on public.transfusions for all 
 create policy "Allow all access on medications" on public.medications for all using (true) with check (true);`;
 
 export default function SettingsPage() {
-  const { settings, updateSettings } = useApp();
+  const { settings, updateSettings, user } = useApp();
   const [apiKey, setApiKey] = useState(settings.geminiApiKey || '');
   const [supabaseUrl, setSupabaseUrl] = useState(settings.supabaseUrl || DEFAULT_SUPABASE_URL);
   const [supabaseAnonKey, setSupabaseAnonKey] = useState(settings.supabaseAnonKey || '');
@@ -134,6 +135,11 @@ export default function SettingsPage() {
   const [showSupabaseKey, setShowSupabaseKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
+  const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null);
+
+  useEffect(() => {
+    checkProxyStatus(true).then((status) => setProxyStatus(status));
+  }, []);
 
   function handleSave() {
     updateSettings({
@@ -289,27 +295,55 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Gemini API Key */}
+      {/* Gemini API Key & Backend Proxy */}
       <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-accent flex items-center justify-center">
-            <Key size={16} className="text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gradient-accent flex items-center justify-center">
+              <Key size={16} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white">Google Gemini API & Backend Proxy</h3>
+              <p className="text-xs text-slate-500">Penyimpanan kunci server & ekstraksi AI cerdas</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white">Google Gemini API Key</h3>
-            <p className="text-xs text-slate-500">Untuk fitur AI extraction dan ringkasan</p>
-          </div>
+          {proxyStatus?.available && (
+            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${
+              proxyStatus.hasDefaultApiKey
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+            }`}>
+              <Server size={12} />
+              <span>{proxyStatus.hasDefaultApiKey ? 'Backend Proxy Aktif (Cloud Key)' : 'Backend Proxy Siap'}</span>
+            </div>
+          )}
         </div>
 
+        {proxyStatus?.hasDefaultApiKey && (
+          <div className="p-3.5 bg-teal-500/10 border border-teal-500/30 rounded-xl flex items-start gap-2.5 text-xs text-teal-200">
+            <ShieldCheck size={16} className="text-teal-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-semibold text-teal-300">Server Proxy Terhubung:</span>
+              <p className="text-slate-300">
+                Server hosting telah memiliki API Key bawaan. Anda dapat langsung menggunakan AI dari perangkat baru (HP, laptop) tanpa perlu memasukkan API Key secara manual!
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2">
-          <label className="label-text">API Key</label>
+          <div className="flex items-center justify-between">
+            <label className="label-text">
+              Custom API Key {proxyStatus?.hasDefaultApiKey ? '(Opsional - Override Server Key)' : ''}
+            </label>
+          </div>
           <div className="relative">
             <input
               type={showKey ? 'text' : 'password'}
               className="input-field pr-10"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="AIza..."
+              placeholder={proxyStatus?.hasDefaultApiKey ? 'Menggunakan Key Default Server (Kosongkan jika tidak ingin custom)' : 'AIza...'}
               id="gemini-api-key-input"
             />
             <button
@@ -321,20 +355,36 @@ export default function SettingsPage() {
               {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          <p className="text-xs text-slate-600">
-            Dapatkan API key gratis di{' '}
+          <p className="text-xs text-slate-500">
+            Dapatkan API key pribadi gratis di{' '}
             <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-accent-400 hover:underline" id="gemini-api-link">
               Google AI Studio <ExternalLink size={10} className="inline ml-0.5" />
             </a>
           </p>
         </div>
 
-        {settings.geminiApiKey && (
-          <div className="flex items-center gap-2 text-emerald-400 text-xs">
-            <CheckCircle size={13} />
-            Gemini API key sudah dikonfigurasi
+        {settings.geminiApiKey ? (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-emerald-400 text-xs">
+              <CheckCircle size={13} />
+              API key tersimpan di perangkat ini
+            </div>
+            {user ? (
+              <p className="text-[11px] text-teal-300">
+                ☁️ Tersinkronkan dengan akun cloud Anda (<span className="font-mono text-white">{user.email}</span>). Saat Anda login di perangkat lain (HP/laptop), API key ini otomatis aktif tanpa perlu input ulang.
+              </p>
+            ) : (
+              <p className="text-[11px] text-amber-300/90">
+                💡 Anda belum login. Masuk / daftar akun agar API key ini otomatis tersimpan di cloud dan aktif di seluruh perangkat Anda.
+              </p>
+            )}
           </div>
-        )}
+        ) : proxyStatus?.hasDefaultApiKey ? (
+          <div className="flex items-center gap-2 text-teal-400 text-xs">
+            <CheckCircle size={13} />
+            Siap digunakan via server proxy
+          </div>
+        ) : null}
       </div>
 
       <div className="flex justify-end">

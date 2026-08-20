@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Lock, Mail, User, LogIn, UserPlus, AlertCircle, Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Activity, Lock, Mail, User, LogIn, UserPlus, AlertCircle, Loader2, ArrowRight, ShieldCheck, Key, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function AuthPage() {
@@ -10,6 +10,8 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -41,9 +43,9 @@ export default function AuthPage() {
         if (error) throw error;
         navigate('/');
       } else {
-        const { error } = await signUp(email, password, fullName);
+        const { error } = await signUp(email, password, fullName, geminiApiKey);
         if (error) throw error;
-        setMessage('Pendaftaran berhasil! Silakan cek email Anda untuk konfirmasi atau langsung masuk.');
+        setMessage('Pendaftaran berhasil! API Key dan profil Anda telah tersimpan di cloud. Silakan masuk.');
         setMode('login');
       }
     } catch (err: any) {
@@ -157,6 +159,43 @@ export default function AuthPage() {
                 />
               </div>
             </div>
+
+            {mode === 'register' && (
+              <div className="pt-1">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label-text">Google Gemini API Key (Opsional)</label>
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-accent-400 hover:underline flex items-center gap-0.5"
+                  >
+                    Dapatkan Key Gratis <ExternalLink size={9} />
+                  </a>
+                </div>
+                <div className="relative">
+                  <Key size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    className="input-field pl-9 pr-9"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="AIzaSy... (atau isi nanti di Pengaturan)"
+                    id="auth-apikey-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  >
+                    {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Kunci ini akan tersimpan di akun Anda dan otomatis aktif saat Anda login di perangkat mana pun.
+                </p>
+              </div>
+            )}
 
             <button
               type="submit"

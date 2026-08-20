@@ -101,19 +101,101 @@ async function generateWithFallback(genAI: any, contents: any) {
   throw lastErr;
 }
 
+export interface ProxyStatus {
+  available: boolean;
+  hasDefaultApiKey: boolean;
+}
+
+let cachedProxyStatus: ProxyStatus | null = null;
+
+export async function checkProxyStatus(forceRefresh = false): Promise<ProxyStatus> {
+  if (cachedProxyStatus && !forceRefresh) {
+    return cachedProxyStatus;
+  }
+  try {
+    const res = await fetch('/api/gemini', { method: 'GET' });
+    if (res.ok) {
+      const data = await res.json();
+      cachedProxyStatus = {
+        available: true,
+        hasDefaultApiKey: Boolean(data.hasDefaultApiKey),
+      };
+      return cachedProxyStatus;
+    }
+  } catch {
+    // Backend proxy unavailable (e.g. offline or static server)
+  }
+  cachedProxyStatus = { available: false, hasDefaultApiKey: false };
+  return cachedProxyStatus;
+}
+
+async function callViaProxyOrFallback(
+  action: string,
+  payload: any,
+  apiKey?: string,
+  fallbackFn?: (key: string) => Promise<string>
+): Promise<string> {
+  const customKey = apiKey?.trim() || '';
+
+  // 1. Try Backend Proxy first
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (customKey) {
+      headers['x-gemini-api-key'] = customKey;
+    }
+
+    const res = await fetch('/api/gemini', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action, payload }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && typeof data.text === 'string') {
+        return data.text;
+      }
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      if (res.status === 400 && errJson.code === 'MISSING_API_KEY') {
+        // If proxy is active but neither server nor client provided a key
+        if (!customKey && fallbackFn) {
+          throw new Error('API Key belum diatur di server atau di Pengaturan. Masukkan Gemini API Key Anda.');
+        }
+      }
+      // If 404 or other server error, proceed to client-side fallback below
+    }
+  } catch (proxyErr: any) {
+    // If proxy error is explicit missing key, rethrow
+    if (proxyErr.message && proxyErr.message.includes('API Key')) {
+      throw proxyErr;
+    }
+    console.warn('Backend proxy request failed, attempting direct fallback...', proxyErr);
+  }
+
+  // 2. Client-side SDK Fallback
+  const keyToUse = customKey || import.meta.env.VITE_GEMINI_API_KEY;
+  if (!keyToUse) {
+    throw new Error('Gemini API Key tidak ditemukan. Harap tambahkan API Key di menu Pengaturan atau di environment variable server.');
+  }
+
+  if (fallbackFn) {
+    return await fallbackFn(keyToUse);
+  }
+
+  throw new Error('Gagal menghubungi Gemini API via proxy maupun client.');
+}
+
 export async function extractDocumentWithGemini(
-  apiKey: string,
+  apiKey: string | undefined,
   imageBase64: string,
   mimeType: string,
   documentId: string
 ): Promise<ExtractionResult> {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-
   // Strip data URL prefix if present
   const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
 
-  // Normalize MIME type (WhatsApp images often use image/jpg or octet-stream)
+  // Normalize MIME type
   let normalizedMimeType = mimeType || 'image/jpeg';
   if (normalizedMimeType.includes('jpg') || normalizedMimeType.includes('jpeg')) {
     normalizedMimeType = 'image/jpeg';
@@ -127,22 +209,33 @@ export async function extractDocumentWithGemini(
     else if (base64Data.startsWith('JVBERi0')) normalizedMimeType = 'application/pdf';
   }
 
-  const result = await generateWithFallback(genAI, [
-    EXTRACTION_PROMPT,
+  const text = await callViaProxyOrFallback(
+    'extractDocument',
     {
-      inlineData: {
-        data: base64Data,
-        mimeType: normalizedMimeType,
-      },
+      imageBase64: base64Data,
+      mimeType: normalizedMimeType,
+      prompt: EXTRACTION_PROMPT,
     },
-  ]);
-
-  const text = result.response.text();
+    apiKey,
+    async (directKey) => {
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(directKey);
+      const result = await generateWithFallback(genAI, [
+        EXTRACTION_PROMPT,
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: normalizedMimeType,
+          },
+        },
+      ]);
+      return result.response.text();
+    }
+  );
 
   // Parse JSON from response
   let parsed: { identity: DocumentIdentity; labItems: ExtractedLabItem[]; medicationItems?: ExtractedMedItem[] };
   try {
-    // Try to extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON found in response');
     parsed = JSON.parse(jsonMatch[0]);
@@ -209,7 +302,7 @@ export async function extractDocumentWithGemini(
 }
 
 export async function generateMedicalSummary(
-  apiKey: string,
+  apiKey: string | undefined,
   patientData: {
     patient: {
       fullName: string;
@@ -243,18 +336,26 @@ export async function generateMedicalSummary(
     }>;
   }
 ): Promise<string> {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-
-  const dataStr = JSON.stringify(patientData, null, 2);
-  const prompt = `${SUMMARY_PROMPT}\n\nDATA PASIEN:\n${dataStr}`;
-
-  const result = await generateWithFallback(genAI, prompt);
-  return result.response.text();
+  return await callViaProxyOrFallback(
+    'generateSummary',
+    {
+      prompt: SUMMARY_PROMPT,
+      patientData,
+    },
+    apiKey,
+    async (directKey) => {
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(directKey);
+      const dataStr = JSON.stringify(patientData, null, 2);
+      const prompt = `${SUMMARY_PROMPT}\n\nDATA PASIEN:\n${dataStr}`;
+      const result = await generateWithFallback(genAI, prompt);
+      return result.response.text();
+    }
+  );
 }
 
 export async function generateDoctorQuestions(
-  apiKey: string,
+  apiKey: string | undefined,
   labResults: Array<{
     testName: string;
     value: number | null;
@@ -265,30 +366,34 @@ export async function generateDoctorQuestions(
     referenceHigh?: number;
   }>
 ): Promise<string> {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-
   const prompt = `Berdasarkan hasil lab berikut, buatkan 5-8 pertanyaan yang dapat diajukan kepada dokter. 
 Gunakan bahasa yang sopan dan tidak menakutkan. Pertanyaan harus membantu keluarga mendapatkan penjelasan yang lebih baik dari dokter.
 Format: numbered list dalam bahasa Indonesia.
-DO NOT diagnose. Just generate helpful questions.
+DO NOT diagnose. Just generate helpful questions.`;
 
-Data lab:
-${JSON.stringify(labResults, null, 2)}`;
-
-  const result = await generateWithFallback(genAI, prompt);
-  return result.response.text();
+  return await callViaProxyOrFallback(
+    'generateQuestions',
+    {
+      prompt,
+      labResults,
+    },
+    apiKey,
+    async (directKey) => {
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(directKey);
+      const fullPrompt = `${prompt}\n\nData lab:\n${JSON.stringify(labResults, null, 2)}`;
+      const result = await generateWithFallback(genAI, fullPrompt);
+      return result.response.text();
+    }
+  );
 }
 
 export async function queryMedicalAssistant(
-  apiKey: string,
+  apiKey: string | undefined,
   patientData: any,
   conversationHistory: Array<{ role: 'user' | 'model'; content: string }>,
   userPrompt: string
 ): Promise<string> {
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-
   const systemInstructions = `Anda adalah Asisten Rekam Medis MedTrack AI yang ramah, teliti, dan komunikatif. Tugas Anda adalah membantu keluarga/caregiver memahami riwayat dan data kesehatan pasien berdasarkan seluruh rekam medis yang tersimpan di aplikasi.
 
 PANDUAN & ATURAN PENTING:
@@ -296,32 +401,42 @@ PANDUAN & ATURAN PENTING:
 2. Jika ada data yang tidak tercatat atau belum lengkap (misal hasil lab tertentu belum pernah dites), sampaikan dengan jujur bahwa data tersebut belum tersedia di aplikasi.
 3. Gunakan bahasa Indonesia yang mudah dipahami orang awam, hangat, dan suportif.
 4. Jangan pernah memberikan vonis diagnosis pasti, meresepkan dosis baru, atau mengubah terapi dokter secara sepihak. Berikan perspektif analisis tren data dan anjuran hal-hal yang perlu dikonsultasikan ke dokter yang merawat.
-5. Format jawaban dengan markdown yang rapi (gunakan bolding untuk nilai/obat penting, bullet points untuk rincian).
+5. Format jawaban dengan markdown yang rapi (gunakan bolding untuk nilai/obat penting, bullet points untuk rincian).`;
 
-DATA REKAM MEDIS PASIEN SAAT INI:
-${JSON.stringify(patientData, null, 2)}`;
+  return await callViaProxyOrFallback(
+    'chat',
+    {
+      systemInstructions,
+      history: conversationHistory,
+      userPrompt,
+      patientData,
+    },
+    apiKey,
+    async (directKey) => {
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(directKey);
 
-  // Construct contents for Gemini chat
-  const contents = [
-    { role: 'user', parts: [{ text: `${systemInstructions}\n\nRiwayat percakapan sebelumnya dan pertanyaan saya:` }] },
-    { role: 'model', parts: [{ text: 'Baik, saya telah membaca seluruh data rekam medis pasien. Ada yang bisa saya bantu atau jelaskan mengenai data kesehatan tersebut?' }] }
-  ];
+      const contents: any[] = [
+        { role: 'user', parts: [{ text: `${systemInstructions}\n\nDATA REKAM MEDIS PASIEN SAAT INI:\n${JSON.stringify(patientData, null, 2)}\n\nRiwayat percakapan sebelumnya dan pertanyaan saya:` }] },
+        { role: 'model', parts: [{ text: 'Baik, saya telah membaca seluruh data rekam medis pasien. Ada yang bisa saya bantu atau jelaskan mengenai data kesehatan tersebut?' }] }
+      ];
 
-  // Append history
-  for (const msg of conversationHistory) {
-    contents.push({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    });
-  }
+      for (const msg of conversationHistory) {
+        contents.push({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        });
+      }
 
-  // Append latest question
-  contents.push({
-    role: 'user',
-    parts: [{ text: userPrompt }]
-  });
+      contents.push({
+        role: 'user',
+        parts: [{ text: userPrompt }]
+      });
 
-  const result = await generateWithFallback(genAI, contents);
-  return result.response.text();
+      const result = await generateWithFallback(genAI, contents);
+      return result.response.text();
+    }
+  );
 }
+
 
