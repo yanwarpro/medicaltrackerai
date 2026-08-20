@@ -22,11 +22,7 @@ import {
   ChevronDown,
   LogIn,
   LogOut,
-  Bot,
-  Sparkles,
-  Download,
 } from 'lucide-react';
-import { useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { cn, calcAge } from '../../lib/utils';
 
@@ -49,28 +45,8 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [patientMenuOpen, setPatientMenuOpen] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
   const { activePatient, patients, setActivePatient, user, signOut } = useApp();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const handleBeforeInstall = (e: any) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setInstallPrompt(null);
-    }
-  };
 
   return (
     <aside
@@ -172,21 +148,6 @@ export default function Sidebar() {
 
       {/* Bottom User / Settings */}
       <div className="border-t border-bg-border px-2 py-2 space-y-1">
-        {installPrompt && (
-          <button
-            onClick={handleInstallClick}
-            id="install-pwa-btn"
-            className={cn(
-              'nav-item text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 w-full text-left',
-              collapsed && 'justify-center px-0'
-            )}
-            title={collapsed ? 'Pasang Aplikasi' : undefined}
-          >
-            <Download size={17} className="flex-shrink-0 text-emerald-400 animate-pulse" />
-            {!collapsed && <span className="text-sm font-medium">Pasang Aplikasi</span>}
-          </button>
-        )}
-
         <NavLink
           to="/settings"
           id="nav-settings"
