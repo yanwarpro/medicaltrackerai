@@ -32,7 +32,6 @@ import { cn, calcAge } from '../../lib/utils';
 
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/chat', icon: Bot, label: 'Tanya AI' },
   { to: '/timeline', icon: Activity, label: 'Timeline' },
   { to: '/blood-pressure', icon: HeartPulse, label: 'Riwayat Tensi' },
   { to: '/documents', icon: FileText, label: 'Dokumen' },
