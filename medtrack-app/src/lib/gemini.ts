@@ -279,3 +279,49 @@ ${JSON.stringify(labResults, null, 2)}`;
   const result = await generateWithFallback(genAI, prompt);
   return result.response.text();
 }
+
+export async function queryMedicalAssistant(
+  apiKey: string,
+  patientData: any,
+  conversationHistory: Array<{ role: 'user' | 'model'; content: string }>,
+  userPrompt: string
+): Promise<string> {
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  const systemInstructions = `Anda adalah Asisten Rekam Medis MedTrack AI yang ramah, teliti, dan komunikatif. Tugas Anda adalah membantu keluarga/caregiver memahami riwayat dan data kesehatan pasien berdasarkan seluruh rekam medis yang tersimpan di aplikasi.
+
+PANDUAN & ATURAN PENTING:
+1. Jawab pertanyaan pengguna HANYA berdasarkan DATA REKAM MEDIS PASIEN yang disediakan berikut ini.
+2. Jika ada data yang tidak tercatat atau belum lengkap (misal hasil lab tertentu belum pernah dites), sampaikan dengan jujur bahwa data tersebut belum tersedia di aplikasi.
+3. Gunakan bahasa Indonesia yang mudah dipahami orang awam, hangat, dan suportif.
+4. Jangan pernah memberikan vonis diagnosis pasti, meresepkan dosis baru, atau mengubah terapi dokter secara sepihak. Berikan perspektif analisis tren data dan anjuran hal-hal yang perlu dikonsultasikan ke dokter yang merawat.
+5. Format jawaban dengan markdown yang rapi (gunakan bolding untuk nilai/obat penting, bullet points untuk rincian).
+
+DATA REKAM MEDIS PASIEN SAAT INI:
+${JSON.stringify(patientData, null, 2)}`;
+
+  // Construct contents for Gemini chat
+  const contents = [
+    { role: 'user', parts: [{ text: `${systemInstructions}\n\nRiwayat percakapan sebelumnya dan pertanyaan saya:` }] },
+    { role: 'model', parts: [{ text: 'Baik, saya telah membaca seluruh data rekam medis pasien. Ada yang bisa saya bantu atau jelaskan mengenai data kesehatan tersebut?' }] }
+  ];
+
+  // Append history
+  for (const msg of conversationHistory) {
+    contents.push({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    });
+  }
+
+  // Append latest question
+  contents.push({
+    role: 'user',
+    parts: [{ text: userPrompt }]
+  });
+
+  const result = await generateWithFallback(genAI, contents);
+  return result.response.text();
+}
+

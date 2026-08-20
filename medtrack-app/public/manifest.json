@@ -1,0 +1,29 @@
+{
+  "name": "MedTrack AI — Rekam Medis & Lab Analyzer",
+  "short_name": "MedTrack AI",
+  "description": "Simpan, pahami, dan pantau rekam medis serta hasil lab keluarga Anda dengan kecerdasan buatan.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1d",
+  "theme_color": "#0d9488",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["medical", "health", "productivity"]
+}

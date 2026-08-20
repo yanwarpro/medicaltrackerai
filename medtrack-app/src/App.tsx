@@ -13,6 +13,7 @@ import TransfusionTracker from './pages/Transfusion';
 import Medications from './pages/Medications';
 import BloodPressure from './pages/BloodPressure';
 import AISummary from './pages/AISummary';
+import AIChat from './pages/AIChat';
 import DoctorReport from './pages/DoctorReport';
 import GlobalSearch from './pages/Search';
 import SettingsPage from './pages/SettingsPage';
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/hospitalization" element={<HospitalizationTracker />} />
             <Route path="/transfusion" element={<TransfusionTracker />} />
             <Route path="/medications" element={<Medications />} />
+            <Route path="/chat" element={<AIChat />} />
             <Route path="/summary" element={<AISummary />} />
             <Route path="/report" element={<DoctorReport />} />
             <Route path="/search" element={<GlobalSearch />} />

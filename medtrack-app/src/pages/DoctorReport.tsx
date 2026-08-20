@@ -21,7 +21,7 @@ const KEY_LAB_PARAMS = [
 export default function DoctorReport() {
   const { activePatient } = useApp();
   const reportRef = useRef<HTMLDivElement>(null);
-  const [printing, setPrinting] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const labResults = useMemo(() =>
     activePatient ? labResultStorage.getAll(activePatient.id).filter((r) => r.verified) : [],
@@ -78,6 +78,37 @@ export default function DoctorReport() {
     window.print();
   }
 
+  async function handleDownloadPDF() {
+    if (!reportRef.current || !activePatient) return;
+    setDownloadingPdf(true);
+    try {
+      // @ts-ignore
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
+      
+      const element = reportRef.current;
+      const patientNameClean = activePatient.fullName.replace(/[^a-zA-Z0-9]/g, '_');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `Laporan_Medis_${patientNameClean}_${dateStr}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      // Fallback to window.print if html2pdf fails
+      window.print();
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
   if (!activePatient) {
     return (
       <div className="page-container flex items-center justify-center min-h-[60vh]">
@@ -90,15 +121,30 @@ export default function DoctorReport() {
 
   return (
     <div className="page-container">
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold text-white">Laporan Dokter</h1>
-          <p className="text-slate-400 text-sm mt-1">Laporan medis untuk dibawa ke dokter</p>
+          <p className="text-slate-400 text-sm mt-1">Laporan medis terstruktur siap bawa atau unduh untuk konsultasi dokter</p>
         </div>
-        <button onClick={handlePrint} id="print-report-btn" className="btn-primary">
-          <Printer size={15} />
-          Print / PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleDownloadPDF} 
+            disabled={downloadingPdf}
+            id="download-pdf-btn" 
+            className="btn-primary flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium px-4 py-2 rounded-lg transition-all shadow-md disabled:opacity-50"
+          >
+            <Download size={16} className={downloadingPdf ? 'animate-bounce' : ''} />
+            {downloadingPdf ? 'Membuat PDF...' : 'Unduh PDF'}
+          </button>
+          <button 
+            onClick={handlePrint} 
+            id="print-report-btn" 
+            className="btn-secondary flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-card border border-bg-border hover:bg-bg-elevated text-slate-200"
+          >
+            <Printer size={16} />
+            Print
+          </button>
+        </div>
       </div>
 
       {/* Report */}
@@ -177,7 +223,7 @@ export default function DoctorReport() {
             <thead>
               <tr className="border-b border-bg-border bg-bg-secondary/40 print:border-gray-300">
                 <th className="table-header">PARAMETER</th>
-                {[...new Set(labResults.map((r) => r.testDate))].sort().slice(-3).map((d) => (
+                {[...new Set(labResults.map((r) => r.testDate))].sort().slice(-3).map((d: string) => (
                   <th key={d} className="table-header text-right">{formatDateShort(d)}</th>
                 ))}
                 <th className="table-header text-right">TREN</th>
